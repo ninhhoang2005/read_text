@@ -1,0 +1,3 @@
+Thanks to these people who contributed with me to the software: 
+Vo Dinh Hoang: code Function listen text tts. 
+Vu Anh Loc: code logo and edit combo box. 

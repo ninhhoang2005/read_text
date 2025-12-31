@@ -3,17 +3,18 @@
 #include <EditConstants.au3>
 #include <ColorConstants.au3>
 #include <ComboConstants.au3>
+#include <SliderConstants.au3>
 #include "includes/play-logo.au3"
 logo(1)
 
 Global $g_oSAPI
 $g_oSAPI = ObjCreate("SAPI.SpVoice")
 If @error Then
-    MSGBox(16,"error", "you cannot read by sapi 5. Please try again")
+    MsgBox(16, "error", "you cannot read by sapi 5. Please try again")
     Exit
 EndIf
 
-GuiCreate("ReadTextV2.0(original version)", 300, 400) ; tăng chiều cao để chứa Pitch
+GuiCreate("ReadTextV2.0(original version)", 300, 400)
 GuiSetBkColor($COLOR_BLUE)
 GuiCtrlCreateLabel("&enter text", 10, 5)
 $entertext = GuiCtrlCreateEdit("", 10, 25, 280, 50)
@@ -40,6 +41,7 @@ GUICtrlSetData($sliderPitch, 0)
 $button = GuiCtrlCreateButton("Read&Text", 40, 150, 280, 30)
 $message = GuiCtrlCreateButton("&my message", 200, 180, 80, 50)
 $tts = GuiCtrlCreateButton("&Listen text", 50, 320, 230, 60)
+$saveAudio = GuiCtrlCreateButton("&Save Audio", 50, 290, 230, 30)
 
 $menu = GuiCtrlCreateMenu("help")
 $menu1 = GuiCtrlCreateMenuItem("about...", $menu)
@@ -69,7 +71,7 @@ While 1
             If FileExists($virules) Then
                 Run("notepad.exe " & $virules)
             Else
-                MSGBox(0,"error", "you cannot read the rules. Please try again")
+                MsgBox(0, "error", "you cannot read the rules. Please try again")
             EndIf
 
         Case $rules2
@@ -78,16 +80,16 @@ While 1
             If FileExists($enrules) Then
                 Run("notepad.exe " & $enrules)
             Else
-                MSGBox(0,"error", "you cannot read the rules. Please try again")
+                MsgBox(0, "error", "you cannot read the rules. Please try again")
             EndIf
 
         Case $menu1
             SoundPlay("sounds/enter.wav")
-            MSGBox(64, "about", "ReadText version: 2.0, by developer vo dinh hung, this is original version. Thanks for using the software.")
+            MsgBox(64, "about", "ReadText version: 2.0, by developer vo dinh hung, this is original version. Thanks for using the software.")
 
         Case $message
             SoundPlay("sounds/message.wav")
-            MSGBox(0, "message", "Hello everyone, it's the last time everyone uses ReadText software. Thank you everyone for using my software, this is the final version of the software I developed. I have to stop developing the software because I myself have no ideas for my software. If you have ideas or need to contact, please contact via the following applications: email: vodinhhungtnlg@gmail.com, facebook: Phaolo Vo Dinh Hung")
+            MsgBox(0, "message", "Hello everyone, it's the last time everyone uses ReadText software. Thank you everyone for using my software, this is the final version of the software I developed. I have to stop developing the software because I myself have no ideas for my software. If you have ideas or need to contact, please contact via the following applications: email: vodinhhungtnlg@gmail.com, facebook: Phaolo Vo Dinh Hung")
 
         Case $facebook
             SoundPlay("sounds/enter.wav")
@@ -102,7 +104,7 @@ While 1
             If FileExists($cFilePath) Then
                 Run("notepad.exe " & $cFilePath)
             Else
-                MSGBox(0,"error", "you cannot read tutorial. Please try again.")
+                MsgBox(0, "error", "you cannot read tutorial. Please try again.")
             EndIf
 
         Case $menuitem1
@@ -111,7 +113,7 @@ While 1
             If FileExists($sFilePath) Then
                 Run("notepad.exe " & $sFilePath)
             Else
-                MSGBox(0,"error", "you cannot read tutorial. Please try again.")
+                MsgBox(0, "error", "you cannot read tutorial. Please try again.")
             EndIf
 
         Case $button
@@ -126,7 +128,7 @@ While 1
             Local $pitch = GuiCtrlRead($sliderPitch)
 
             If Not IsObj($g_oSAPI) Then
-                MSGBox(16, "error", "The SAPI.SpVoice object does not exist or has been destroyed. Please restart the application.")
+                MsgBox(16, "error", "The SAPI.SpVoice object does not exist or has been destroyed. Please restart the application.")
                 Exit
             EndIf
 
@@ -143,12 +145,51 @@ While 1
             $g_oSAPI.Rate = $rate
 
             If StringStripWS($ok, 8) <> "" Then
-                ; dùng SSML để chỉnh pitch
                 Local $ssml = '<sapi><pitch middle="' & $pitch & '">' & $ok & '</pitch></sapi>'
                 $g_oSAPI.Speak($ssml, 1)
             Else
-                MSGBox(64,"warning", "please enter your text")
+                SoundPlay("sounds/enter.wav")
+                MsgBox(0, "warning", "please enter your text")
             EndIf
+
+        Case $saveAudio
+            Local $sSelectedVoice = GuiCtrlRead($comboVoice)
+            Local $ok = GuiCtrlRead($entertext)
+            Local $vol = GuiCtrlRead($sliderVolume)
+            Local $rate = GuiCtrlRead($sliderRate)
+            Local $pitch = GuiCtrlRead($sliderPitch)
+
+            If StringStripWS($ok, 8) = "" Then
+                SoundPlay("sounds/enter.wav")
+                MsgBox(0, "warning", "please enter your text")
+                ContinueLoop
+            EndIf
+            SoundPlay("sounds/enter.wav")
+            Local $sFile = FileSaveDialog("Save audio as...", @ScriptDir, "Wave files (*.wav)", 16, "output.wav")
+            If @error Or $sFile = "" Then ContinueLoop
+
+            Local $oStream = ObjCreate("SAPI.SpFileStream")
+            $oStream.Open($sFile, 3, False)
+
+            If $sSelectedVoice <> "" Then
+                For $oToken In $g_oSAPI.GetVoices()
+                    If $oToken.GetDescription() = $sSelectedVoice Then
+                        $g_oSAPI.Voice = $oToken
+                        ExitLoop
+                    EndIf
+                Next
+            EndIf
+
+            $g_oSAPI.Volume = $vol
+            $g_oSAPI.Rate = $rate
+
+            $g_oSAPI.AudioOutputStream = $oStream
+            Local $ssml = '<sapi><pitch middle="' & $pitch & '">' & $ok & '</pitch></sapi>'
+            $g_oSAPI.Speak($ssml)
+            $oStream.Close()
+            $g_oSAPI.AudioOutputStream = 0
+            MsgBox(64, "success", "Audio saved successfully as WAV file.")
+exit
 
         Case $menu2
             SoundPlay("sounds/enter.wav")
@@ -158,12 +199,18 @@ WEnd
 
 Func ReadText()
     Local $text = GuiCtrlRead($entertext)
+    If StringStripWS($text, 8) = "" Then
+        SoundPlay("sounds/enter.wav")
+        MsgBox(0, "warning", "please enter your text")
+        Return
+    EndIf
     Local $displayGui = GuiCreate("text", 500, 500)
-    Local $document = GUICtrlCreateEdit($text, 230, 230, 380, 250, BitOR($ES_AUTOVSCROLL, $ES_READONLY, $WS_VSCROLL))
+    Local $document = GUICtrlCreateEdit($text, 20, 20, 450, 400, BitOR($ES_AUTOVSCROLL, $ES_READONLY, $WS_VSCROLL, $WS_TABSTOP))
+    Local $btnClose = GUICtrlCreateButton("&Close", 200, 430, 100, 30, $WS_TABSTOP)
     GuiSetState(@SW_SHOW, $displayGui)
     While 1
         Switch GuiGetMSG()
-            Case $GUI_EVENT_CLOSE
+            Case $GUI_EVENT_CLOSE, $btnClose
                 GuiDelete($displayGui)
                 ExitLoop
         EndSwitch
@@ -182,16 +229,17 @@ Func PopulateVoiceComboBox($hCombo)
 EndFunc
 
 Func contribute()
-$congui = GuiCreate("contribute", 700, 700)
-GuiSetBkColor($COLOR_RED)
-$con = FileRead("contribute.txt")
-Local $conedit = GUICtrlCreateEdit($con, 230, 230, 380, 250, BitOR($ES_AUTOVSCROLL, $ES_READONLY, $WS_VSCROLL))
-GuiSetState(@SW_SHOW, $congui)
-While 1
-Switch GuiGetMSG()
-	Case $GUI_EVENT_CLOSE
-GuiDelete($congui)
-ExitLoop
-EndSwitch
-WEnd
-endFunc
+    $congui = GuiCreate("contribute", 700, 700)
+    GuiSetBkColor($COLOR_RED)
+    $con = FileRead("contribute.txt")
+    Local $conedit = GUICtrlCreateEdit($con, 20, 20, 650, 600, BitOR($ES_AUTOVSCROLL, $ES_READONLY, $WS_VSCROLL, $WS_TABSTOP))
+    Local $btnClose = GUICtrlCreateButton("&Close", 300, 630, 100, 30, $WS_TABSTOP)
+    GuiSetState(@SW_SHOW, $congui)
+    While 1
+        Switch GuiGetMSG()
+            Case $GUI_EVENT_CLOSE, $btnClose
+                GuiDelete($congui)
+                ExitLoop
+        EndSwitch
+    WEnd
+EndFunc

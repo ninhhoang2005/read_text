@@ -41,7 +41,8 @@ GUICtrlSetData($sliderPitch, 0)
 $button = GuiCtrlCreateButton("Read&Text", 40, 150, 280, 30)
 $message = GuiCtrlCreateButton("&my message", 200, 180, 80, 50)
 $tts = GuiCtrlCreateButton("&Listen text", 50, 320, 230, 60)
-$saveAudio = GuiCtrlCreateButton("&Save Audio", 50, 290, 230, 30)
+$saveAudio = GuiCtrlCreateButton("Save Audio, ctrl+s", 50, 290, 230, 30)
+$openText = GuiCtrlCreateButton("Open Text Files, ctrl+o", 50, 260, 230, 30)
 
 $menu = GuiCtrlCreateMenu("help")
 $menu1 = GuiCtrlCreateMenuItem("about...", $menu)
@@ -59,12 +60,14 @@ $rules2 = GuiCtrlCreateMenuItem("english", $subMenu3)
 GuiCtrlCreateLabel("press the alt key to go the menu help", 20, 380)
 GuiSetState()
 
+HotKeySet("^s", "_SaveAudioHotkey")
+HotKeySet("^o", "_OpenTextHotkey")
+
 While 1
     Switch GuiGetMSG()
         Case $GUI_EVENT_CLOSE, $menu3
             SoundPlay("sounds/exit.wav", 1)
             Exit
-
         Case $rules1
             SoundPlay("sounds/enter.wav")
             Local $virules = "rules\rules_Vietnamese.txt"
@@ -73,7 +76,6 @@ While 1
             Else
                 MsgBox(0, "error", "you cannot read the rules. Please try again")
             EndIf
-
         Case $rules2
             SoundPlay("sounds/enter.wav")
             Local $enrules = "rules\rules_english.txt"
@@ -82,22 +84,17 @@ While 1
             Else
                 MsgBox(0, "error", "you cannot read the rules. Please try again")
             EndIf
-
         Case $menu1
             SoundPlay("sounds/enter.wav")
             MsgBox(64, "about", "ReadText version: 2.0, by developer vo dinh hung, this is original version. Thanks for using the software.")
-
         Case $message
             SoundPlay("sounds/message.wav")
             MsgBox(0, "message", "Hello everyone, it's the last time everyone uses ReadText software. Thank you everyone for using my software, this is the final version of the software I developed. I have to stop developing the software because I myself have no ideas for my software. If you have ideas or need to contact, please contact via the following applications: email: vodinhhungtnlg@gmail.com, facebook: Phaolo Vo Dinh Hung")
-
         Case $facebook
             SoundPlay("sounds/enter.wav")
             ShellExecute("https://www.facebook.com/profile.php?id=100083295244149")
-
         Case $email
             ShellExecute("https://mail.google.com/mail/u/0/?fs=1&tf=cm&source=mailto&to=vodinhhungtnlg@gmail.com")
-
         Case $menuitem2
             SoundPlay("sounds/enter.wav")
             Local $cFilePath = "readme\ReadmeEnglish.txt"
@@ -106,7 +103,6 @@ While 1
             Else
                 MsgBox(0, "error", "you cannot read tutorial. Please try again.")
             EndIf
-
         Case $menuitem1
             SoundPlay("sounds/enter.wav")
             Local $sFilePath = "readme\ReadmeVietnamese.txt"
@@ -115,23 +111,19 @@ While 1
             Else
                 MsgBox(0, "error", "you cannot read tutorial. Please try again.")
             EndIf
-
         Case $button
             SoundPlay("sounds/enter.wav")
             ReadText()
-
         Case $tts
             Local $sSelectedVoice = GuiCtrlRead($comboVoice)
             Local $ok = GuiCtrlRead($entertext)
             Local $vol = GuiCtrlRead($sliderVolume)
             Local $rate = GuiCtrlRead($sliderRate)
             Local $pitch = GuiCtrlRead($sliderPitch)
-
             If Not IsObj($g_oSAPI) Then
                 MsgBox(16, "error", "The SAPI.SpVoice object does not exist or has been destroyed. Please restart the application.")
                 Exit
             EndIf
-
             If $sSelectedVoice <> "" Then
                 For $oToken In $g_oSAPI.GetVoices()
                     If $oToken.GetDescription() = $sSelectedVoice Then
@@ -140,10 +132,8 @@ While 1
                     EndIf
                 Next
             EndIf
-
             $g_oSAPI.Volume = $vol
             $g_oSAPI.Rate = $rate
-
             If StringStripWS($ok, 8) <> "" Then
                 Local $ssml = '<sapi><pitch middle="' & $pitch & '">' & $ok & '</pitch></sapi>'
                 $g_oSAPI.Speak($ssml, 1)
@@ -151,51 +141,61 @@ While 1
                 SoundPlay("sounds/enter.wav")
                 MsgBox(0, "warning", "please enter your text")
             EndIf
-
         Case $saveAudio
-            Local $sSelectedVoice = GuiCtrlRead($comboVoice)
-            Local $ok = GuiCtrlRead($entertext)
-            Local $vol = GuiCtrlRead($sliderVolume)
-            Local $rate = GuiCtrlRead($sliderRate)
-            Local $pitch = GuiCtrlRead($sliderPitch)
-
-            If StringStripWS($ok, 8) = "" Then
-                SoundPlay("sounds/enter.wav")
-                MsgBox(0, "warning", "please enter your text")
-                ContinueLoop
-            EndIf
-            SoundPlay("sounds/enter.wav")
-            Local $sFile = FileSaveDialog("Save audio as...", @ScriptDir, "Wave files (*.wav)", 16, "output.wav")
-            If @error Or $sFile = "" Then ContinueLoop
-
-            Local $oStream = ObjCreate("SAPI.SpFileStream")
-            $oStream.Open($sFile, 3, False)
-
-            If $sSelectedVoice <> "" Then
-                For $oToken In $g_oSAPI.GetVoices()
-                    If $oToken.GetDescription() = $sSelectedVoice Then
-                        $g_oSAPI.Voice = $oToken
-                        ExitLoop
-                    EndIf
-                Next
-            EndIf
-
-            $g_oSAPI.Volume = $vol
-            $g_oSAPI.Rate = $rate
-
-            $g_oSAPI.AudioOutputStream = $oStream
-            Local $ssml = '<sapi><pitch middle="' & $pitch & '">' & $ok & '</pitch></sapi>'
-            $g_oSAPI.Speak($ssml)
-            $oStream.Close()
-            $g_oSAPI.AudioOutputStream = 0
-            MsgBox(64, "success", "Audio saved successfully as WAV file.")
-exit
-
+            _SaveAudioHotkey()
+        Case $openText
+            _OpenTextHotkey()
         Case $menu2
             SoundPlay("sounds/enter.wav")
             contribute()
     EndSwitch
 WEnd
+
+Func _SaveAudioHotkey()
+    Local $sSelectedVoice = GuiCtrlRead($comboVoice)
+    Local $ok = GuiCtrlRead($entertext)
+    Local $vol = GuiCtrlRead($sliderVolume)
+    Local $rate = GuiCtrlRead($sliderRate)
+    Local $pitch = GuiCtrlRead($sliderPitch)
+    If StringStripWS($ok, 8) = "" Then
+        SoundPlay("sounds/enter.wav")
+        MsgBox(0, "warning", "please enter your text")
+        Return
+    EndIf
+    SoundPlay("sounds/enter.wav")
+    Local $sFile = FileSaveDialog("Save audio as...", @ScriptDir, "Wave files (*.wav)", 16, "output.wav")
+    If @error Or $sFile = "" Then Return
+    Local $oStream = ObjCreate("SAPI.SpFileStream")
+    $oStream.Open($sFile, 3, False)
+    If $sSelectedVoice <> "" Then
+        For $oToken In $g_oSAPI.GetVoices()
+            If $oToken.GetDescription() = $sSelectedVoice Then
+                $g_oSAPI.Voice = $oToken
+                ExitLoop
+            EndIf
+        Next
+    EndIf
+    $g_oSAPI.Volume = $vol
+    $g_oSAPI.Rate = $rate
+    $g_oSAPI.AudioOutputStream = $oStream
+    Local $ssml = '<sapi><pitch middle="' & $pitch & '">' & $ok & '</pitch></sapi>'
+    $g_oSAPI.Speak($ssml)
+    $oStream.Close()
+    $g_oSAPI.AudioOutputStream = 0
+    MsgBox(64, "success", "Audio saved successfully as WAV file.")
+EndFunc
+
+Func _OpenTextHotkey()
+    SoundPlay("sounds/enter.wav")
+    Local $sFile = FileOpenDialog("Open text file...", @ScriptDir, "Text files (*.txt)", 1)
+    If @error Or $sFile = "" Then Return
+    Local $content = FileRead($sFile)
+    If @error Then
+        MsgBox(0, "error", "cannot read the file. Please try again")
+        Return
+    EndIf
+    GUICtrlSetData($entertext, $content)
+EndFunc
 
 Func ReadText()
     Local $text = GuiCtrlRead($entertext)

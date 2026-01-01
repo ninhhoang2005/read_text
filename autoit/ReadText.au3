@@ -41,8 +41,9 @@ GUICtrlSetData($sliderPitch, 0)
 $button = GuiCtrlCreateButton("Read&Text", 40, 150, 280, 30)
 $message = GuiCtrlCreateButton("&my message", 200, 180, 80, 50)
 $tts = GuiCtrlCreateButton("&Listen text", 50, 320, 230, 60)
-$saveAudio = GuiCtrlCreateButton("Save Audio, ctrl+s", 50, 290, 230, 30)
-$openText = GuiCtrlCreateButton("Open Text Files, ctrl+o", 50, 260, 230, 30)
+$saveAudio = GuiCtrlCreateButton("Save &Audio", 50, 290, 230, 30)
+$saveText = GuiCtrlCreateButton("Save Text, Ctrl+S", 50, 230, 230, 30)
+$openText = GuiCtrlCreateButton("Open Text Files, Ctrl+O", 50, 260, 230, 30)
 
 $menu = GuiCtrlCreateMenu("help")
 $menu1 = GuiCtrlCreateMenuItem("about...", $menu)
@@ -60,7 +61,7 @@ $rules2 = GuiCtrlCreateMenuItem("english", $subMenu3)
 GuiCtrlCreateLabel("press the alt key to go the menu help", 20, 380)
 GuiSetState()
 
-HotKeySet("^s", "_SaveAudioHotkey")
+HotKeySet("^s", "_SaveTextHotkey")
 HotKeySet("^o", "_OpenTextHotkey")
 
 While 1
@@ -143,6 +144,8 @@ While 1
             EndIf
         Case $saveAudio
             _SaveAudioHotkey()
+        Case $saveText
+            _SaveTextHotkey()
         Case $openText
             _OpenTextHotkey()
         Case $menu2
@@ -197,6 +200,20 @@ Func _OpenTextHotkey()
     GUICtrlSetData($entertext, $content)
 EndFunc
 
+Func _SaveTextHotkey()
+    SoundPlay("sounds/enter.wav")
+    Local $sFile = FileSaveDialog("Save text as...", @ScriptDir, "Text files (*.txt)", 16, "output.txt")
+    If @error Or $sFile = "" Then Return
+    Local $text = GuiCtrlRead($entertext)
+    If StringStripWS($text, 8) = "" Then
+        MsgBox(0, "warning", "please enter your text")
+        Return
+    EndIf
+    FileDelete($sFile)
+    FileWrite($sFile, $text)
+    MsgBox(64, "success", "Text saved successfully.")
+EndFunc
+
 Func ReadText()
     Local $text = GuiCtrlRead($entertext)
     If StringStripWS($text, 8) = "" Then
@@ -229,9 +246,9 @@ Func PopulateVoiceComboBox($hCombo)
 EndFunc
 
 Func contribute()
-    $congui = GuiCreate("contribute", 700, 700)
+    Local $congui = GuiCreate("contribute", 700, 700)
     GuiSetBkColor($COLOR_RED)
-    $con = FileRead("contribute.txt")
+    Local $con = FileRead("contribute.txt")
     Local $conedit = GUICtrlCreateEdit($con, 20, 20, 650, 600, BitOR($ES_AUTOVSCROLL, $ES_READONLY, $WS_VSCROLL, $WS_TABSTOP))
     Local $btnClose = GUICtrlCreateButton("&Close", 300, 630, 100, 30, $WS_TABSTOP)
     GuiSetState(@SW_SHOW, $congui)

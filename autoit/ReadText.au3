@@ -16,7 +16,7 @@ If @error Then
     Exit
 EndIf
 
-Global $hGUI = GuiCreate("ReadTextV2.0(original version)", 300, 420)
+Global $hGUI = GuiCreate("ReadTextV2.0(original version)", 300, 440)
 GuiSetBkColor($COLOR_BLUE)
 GuiCtrlCreateLabel("&enter text", 10, 5)
 $entertext = GuiCtrlCreateEdit("", 10, 25, 280, 50)
@@ -42,12 +42,17 @@ GUICtrlSetData($sliderPitch, 0)
 
 $button = GuiCtrlCreateButton("Read&Text", 40, 150, 280, 30)
 $message = GuiCtrlCreateButton("m&y message", 200, 180, 80, 50)
-$tts = GuiCtrlCreateButton("&Listen text", 50, 320, 230, 60)
-$saveAudio = GuiCtrlCreateButton("Save &Audio", 50, 290, 230, 30)
+
 $saveText = GuiCtrlCreateButton("Save Text, Ctrl+S", 50, 230, 230, 30)
 $openText = GuiCtrlCreateButton("Open Text Files, Ctrl+O", 50, 260, 230, 30)
+$saveAudio = GuiCtrlCreateButton("Save &Audio", 50, 290, 230, 30)
 
-$btnMenuHelp = GuiCtrlCreateButton("&Menu", 50, 385, 230, 25)
+$tts = GuiCtrlCreateButton("&Listen text", 50, 320, 230, 30)
+
+$btnGetClipboard = GuiCtrlCreateButton("Get Text From &Clipboard", 50, 355, 230, 30)
+; -----------------------------
+
+$btnMenuHelp = GuiCtrlCreateButton("&Menu", 50, 395, 230, 25)
 
 $dummyMenu = GuiCtrlCreateDummy()
 $contextMenu = GuiCtrlCreateContextMenu($dummyMenu)
@@ -83,6 +88,17 @@ While 1
         Case $GUI_EVENT_CLOSE, $menu3
             SoundPlay("sounds/exit.wav", 1)
             Exit
+
+        Case $btnGetClipboard
+            SoundPlay("sounds/enter.wav")
+            Local $sClipText = ClipGet()
+
+            If @error Or StringStripWS($sClipText, 8) = "" Then
+                MsgBox(48, "Warning", "The clipboard is empty! Please copy the text to the clipboard")
+            Else
+                GUICtrlSetData($entertext, $sClipText)
+                MsgBox(64, "Success", "Text retrieved from clipboard successfully")
+            EndIf
 
         Case $btnMenuHelp
              SoundPlay("sounds/enter.wav")

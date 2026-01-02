@@ -4,7 +4,9 @@
 #include <ColorConstants.au3>
 #include <ComboConstants.au3>
 #include <SliderConstants.au3>
+#include <GuiMenu.au3>
 #include "includes/play-logo.au3"
+
 logo(1)
 
 Global $g_oSAPI
@@ -14,7 +16,7 @@ If @error Then
     Exit
 EndIf
 
-GuiCreate("ReadTextV2.0(original version)", 300, 400)
+Global $hGUI = GuiCreate("ReadTextV2.0(original version)", 300, 420)
 GuiSetBkColor($COLOR_BLUE)
 GuiCtrlCreateLabel("&enter text", 10, 5)
 $entertext = GuiCtrlCreateEdit("", 10, 25, 280, 50)
@@ -45,20 +47,32 @@ $saveAudio = GuiCtrlCreateButton("Save &Audio", 50, 290, 230, 30)
 $saveText = GuiCtrlCreateButton("Save Text, Ctrl+S", 50, 230, 230, 30)
 $openText = GuiCtrlCreateButton("Open Text Files, Ctrl+O", 50, 260, 230, 30)
 
-$menu = GuiCtrlCreateMenu("help")
-$menu1 = GuiCtrlCreateMenuItem("about...", $menu)
-$menu3 = GuiCtrlCreateMenuItem("exit", $menu)
-$menu2 = GuiCtrlCreateMenuItem("c&ontribute", $menu)
-$SubMenu1 = GuiCtrlCreateMenu("tutorial", $menu)
+$btnMenuHelp = GuiCtrlCreateButton("&Menu", 50, 385, 230, 25)
+
+$dummyMenu = GuiCtrlCreateDummy()
+$contextMenu = GuiCtrlCreateContextMenu($dummyMenu)
+
+$menu1 = GuiCtrlCreateMenuItem("about...", $contextMenu)
+$menu2 = GuiCtrlCreateMenuItem("c&ontribute", $contextMenu)
+
+
+$SubMenu1 = GuiCtrlCreateMenu("tutorial", $contextMenu)
 $menuitem1 = GuiCtrlCreateMenuItem("vietnamese", $SubMenu1)
 $menuitem2 = GuiCtrlCreateMenuItem("english", $SubMenu1)
-$subMenu2 = GuiCtrlCreateMenu("contact with me", $menu)
+
+
+$subMenu2 = GuiCtrlCreateMenu("contact with me", $contextMenu)
 $facebook = GuiCtrlCreateMenuItem("Facebook", $subMenu2)
 $email = GuiCtrlCreateMenuItem("Email", $subMenu2)
-$subMenu3 = GuiCtrlCreateMenu("rules", $menu)
+
+
+$subMenu3 = GuiCtrlCreateMenu("rules", $contextMenu)
 $rules1 = GuiCtrlCreateMenuItem("vietnamese", $subMenu3)
 $rules2 = GuiCtrlCreateMenuItem("english", $subMenu3)
-GuiCtrlCreateLabel("press the alt key to go the menu help", 20, 380)
+
+GuiCtrlCreateMenuItem("", $contextMenu)
+$menu3 = GuiCtrlCreateMenuItem("exit", $contextMenu)
+
 GuiSetState()
 
 HotKeySet("^s", "_SaveTextHotkey")
@@ -69,6 +83,12 @@ While 1
         Case $GUI_EVENT_CLOSE, $menu3
             SoundPlay("sounds/exit.wav", 1)
             Exit
+
+        Case $btnMenuHelp
+             SoundPlay("sounds/enter.wav")
+             Local $hMenuHandle = GuiCtrlGetHandle($contextMenu)
+             _GUICtrlMenu_TrackPopupMenu($hMenuHandle, $hGUI)
+
         Case $rules1
             SoundPlay("sounds/enter.wav")
             Local $virules = "rules\rules_Vietnamese.txt"

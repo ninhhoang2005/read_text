@@ -41,7 +41,7 @@ GUICtrlSetLimit($sliderPitch, 10, -10)
 GUICtrlSetData($sliderPitch, 0)
 
 $button = GuiCtrlCreateButton("Read&Text", 40, 150, 280, 30)
-$message = GuiCtrlCreateButton("&my message", 200, 180, 80, 50)
+$message = GuiCtrlCreateButton("m&y message", 200, 180, 80, 50)
 $tts = GuiCtrlCreateButton("&Listen text", 50, 320, 230, 60)
 $saveAudio = GuiCtrlCreateButton("Save &Audio", 50, 290, 230, 30)
 $saveText = GuiCtrlCreateButton("Save Text, Ctrl+S", 50, 230, 230, 30)

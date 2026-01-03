@@ -6,7 +6,7 @@
 #include <SliderConstants.au3>
 #include <GuiMenu.au3>
 #include "includes/play-logo.au3"
-
+FileChangeDir(@ScriptDir)
 logo(1)
 
 Global $g_oSAPI
@@ -18,7 +18,9 @@ EndIf
 
 Global $hGUI = GuiCreate("ReadTextV2.0(original version)", 300, 440)
 GuiSetBkColor($COLOR_BLUE)
+
 GuiCtrlCreateLabel("&enter text", 10, 5)
+
 $entertext = GuiCtrlCreateEdit("", 10, 25, 280, 50)
 
 GuiCtrlCreateLabel("&select voice", 10, 85)
@@ -50,7 +52,6 @@ $saveAudio = GuiCtrlCreateButton("Save &Audio", 50, 290, 230, 30)
 $tts = GuiCtrlCreateButton("&Listen text", 50, 320, 230, 30)
 
 $btnGetClipboard = GuiCtrlCreateButton("Get Text From &Clipboard", 50, 355, 230, 30)
-; -----------------------------
 
 $btnMenuHelp = GuiCtrlCreateButton("&Menu", 50, 395, 230, 25)
 
@@ -60,16 +61,13 @@ $contextMenu = GuiCtrlCreateContextMenu($dummyMenu)
 $menu1 = GuiCtrlCreateMenuItem("about...", $contextMenu)
 $menu2 = GuiCtrlCreateMenuItem("c&ontribute", $contextMenu)
 
-
 $SubMenu1 = GuiCtrlCreateMenu("tutorial", $contextMenu)
 $menuitem1 = GuiCtrlCreateMenuItem("vietnamese", $SubMenu1)
 $menuitem2 = GuiCtrlCreateMenuItem("english", $SubMenu1)
 
-
 $subMenu2 = GuiCtrlCreateMenu("contact with me", $contextMenu)
 $facebook = GuiCtrlCreateMenuItem("Facebook", $subMenu2)
 $email = GuiCtrlCreateMenuItem("Email", $subMenu2)
-
 
 $subMenu3 = GuiCtrlCreateMenu("rules", $contextMenu)
 $rules1 = GuiCtrlCreateMenuItem("vietnamese", $subMenu3)
@@ -77,6 +75,13 @@ $rules2 = GuiCtrlCreateMenuItem("english", $subMenu3)
 
 GuiCtrlCreateMenuItem("", $contextMenu)
 $menu3 = GuiCtrlCreateMenuItem("exit", $contextMenu)
+Global $chkStartup = GuiCtrlCreateCheckbox("startup with &windows", 180, 2, 100, 20)
+
+Local $sRegKey = "HKCU\Software\Microsoft\Windows\CurrentVersion\Run"
+Local $sAppName = "ReadTextApp"
+If RegRead($sRegKey, $sAppName) = @ScriptFullPath Then
+    GUICtrlSetState($chkStartup, $GUI_CHECKED)
+EndIf
 
 GuiSetState()
 
@@ -88,6 +93,15 @@ While 1
         Case $GUI_EVENT_CLOSE, $menu3
             SoundPlay("sounds/exit.wav", 1)
             Exit
+
+        Case $chkStartup
+            If BitAND(GUICtrlRead($chkStartup), $GUI_CHECKED) = $GUI_CHECKED Then
+                SoundPlay("sounds/checked.wav")
+				RegWrite("HKCU\Software\Microsoft\Windows\CurrentVersion\Run", "ReadTextApp", "REG_SZ", @ScriptFullPath)
+            Else
+                SoundPlay("sounds/unchecked.wav")
+				RegDelete("HKCU\Software\Microsoft\Windows\CurrentVersion\Run", "ReadTextApp")
+            EndIf
 
         Case $btnGetClipboard
             SoundPlay("sounds/enter.wav")
@@ -131,7 +145,8 @@ While 1
             SoundPlay("sounds/enter.wav")
             ShellExecute("https://www.facebook.com/profile.php?id=100083295244149")
         Case $email
-            ShellExecute("https://mail.google.com/mail/u/0/?fs=1&tf=cm&source=mailto&to=vodinhhungtnlg@gmail.com")
+            SoundPlay("sounds/enter.wav")
+			ShellExecute("https://mail.google.com/mail/u/0/?fs=1&tf=cm&source=mailto&to=vodinhhungtnlg@gmail.com")
         Case $menuitem2
             SoundPlay("sounds/enter.wav")
             Local $cFilePath = "readme\ReadmeEnglish.txt"
@@ -176,7 +191,7 @@ While 1
                 $g_oSAPI.Speak($ssml, 1)
             Else
                 SoundPlay("sounds/enter.wav")
-                MsgBox(0, "warning", "please enter your text")
+                MsgBox(48, "warning", "please enter your text")
             EndIf
         Case $saveAudio
             _SaveAudioHotkey()
@@ -198,7 +213,7 @@ Func _SaveAudioHotkey()
     Local $pitch = GuiCtrlRead($sliderPitch)
     If StringStripWS($ok, 8) = "" Then
         SoundPlay("sounds/enter.wav")
-        MsgBox(0, "warning", "please enter your text")
+        MsgBox(48, "warning", "please enter your text")
         Return
     EndIf
     SoundPlay("sounds/enter.wav")
@@ -230,7 +245,7 @@ Func _OpenTextHotkey()
     If @error Or $sFile = "" Then Return
     Local $content = FileRead($sFile)
     If @error Then
-        MsgBox(0, "error", "cannot read the file. Please try again")
+        MsgBox(16, "error", "cannot read the file. Please try again")
         Return
     EndIf
     GUICtrlSetData($entertext, $content)
@@ -242,7 +257,7 @@ Func _SaveTextHotkey()
     If @error Or $sFile = "" Then Return
     Local $text = GuiCtrlRead($entertext)
     If StringStripWS($text, 8) = "" Then
-        MsgBox(0, "warning", "please enter your text")
+        MsgBox(48, "warning", "please enter your text")
         Return
     EndIf
     FileDelete($sFile)
@@ -254,7 +269,7 @@ Func ReadText()
     Local $text = GuiCtrlRead($entertext)
     If StringStripWS($text, 8) = "" Then
         SoundPlay("sounds/enter.wav")
-        MsgBox(0, "warning", "please enter your text")
+        MsgBox(48, "warning", "please enter your text")
         Return
     EndIf
     Local $displayGui = GuiCreate("text", 500, 500)

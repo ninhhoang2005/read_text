@@ -127,20 +127,12 @@ While 1
 
         Case $rules1
             SoundPlay("sounds/enter.wav")
-            Local $virules = "rules\rules_Vietnamese.txt"
-            If FileExists($virules) Then
-                Run("notepad.exe " & $virules)
-            Else
-                MsgBox(0, "error", "you cannot read the rules. Please try again")
-            EndIf
+            _ShowFileContent("Rules (Vietnamese)", "rules\rules_Vietnamese.txt")
+
         Case $rules2
             SoundPlay("sounds/enter.wav")
-            Local $enrules = "rules\rules_english.txt"
-            If FileExists($enrules) Then
-                Run("notepad.exe " & $enrules)
-            Else
-                MsgBox(0, "error", "you cannot read the rules. Please try again")
-            EndIf
+            _ShowFileContent("Rules (English)", "rules\rules_english.txt")
+
         Case $menu1
             SoundPlay("sounds/enter.wav")
             MsgBox(64, "about", "ReadText version: 2.0, by developer vo dinh hung, this is original version. Thanks for using the software.")
@@ -153,22 +145,15 @@ While 1
         Case $email
             SoundPlay("sounds/enter.wav")
             ShellExecute("https://mail.google.com/mail/u/0/?fs=1&tf=cm&source=mailto&to=vodinhhungtnlg@gmail.com")
+        
         Case $menuitem2
             SoundPlay("sounds/enter.wav")
-            Local $cFilePath = "readme\ReadmeEnglish.txt"
-            If FileExists($cFilePath) Then
-                Run("notepad.exe " & $cFilePath)
-            Else
-                MsgBox(0, "error", "you cannot read tutorial. Please try again.")
-            EndIf
+            _ShowFileContent("Tutorial (English)", "readme\ReadmeEnglish.txt")
+
         Case $menuitem1
             SoundPlay("sounds/enter.wav")
-            Local $sFilePath = "readme\ReadmeVietnamese.txt"
-            If FileExists($sFilePath) Then
-                Run("notepad.exe " & $sFilePath)
-            Else
-                MsgBox(0, "error", "you cannot read tutorial. Please try again.")
-            EndIf
+            _ShowFileContent("Tutorial (Vietnamese)", "readme\ReadmeVietnamese.txt")
+
         Case $button
             SoundPlay("sounds/enter.wav")
             ReadText()
@@ -210,6 +195,34 @@ While 1
             contribute()
     EndSwitch
 WEnd
+
+Func _ShowFileContent($sTitle, $sFilePath)
+    If Not FileExists($sFilePath) Then
+        MsgBox(0, "Error", "Cannot find file: " & $sFilePath & @CRLF & "Please check if the file exists.")
+        Return
+    EndIf
+    
+    Local $sContent = FileRead($sFilePath)
+    If @error Then
+        MsgBox(16, "Error", "Cannot read content of the file.")
+        Return
+    EndIf
+
+    Local $displayGui = GuiCreate($sTitle, 500, 500)
+    Local $document = GUICtrlCreateEdit($sContent, 20, 20, 450, 400, BitOR($ES_AUTOVSCROLL, $ES_READONLY, $WS_VSCROLL, $WS_TABSTOP))
+    Local $btnClose = GUICtrlCreateButton("&Close", 200, 430, 100, 30, $WS_TABSTOP)
+    
+    GuiSetState(@SW_SHOW, $displayGui)
+    
+    While 1
+        Switch GuiGetMSG()
+            Case $GUI_EVENT_CLOSE, $btnClose
+                GuiDelete($displayGui)
+                ExitLoop
+        EndSwitch
+    WEnd
+EndFunc
+; -------------------------------------------------------
 
 Func _SaveAudioHotkey()
     Local $sSelectedVoice = GuiCtrlRead($comboVoice)

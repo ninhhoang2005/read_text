@@ -6,6 +6,9 @@
 #include <SliderConstants.au3>
 #include <GuiMenu.au3>
 #include "includes/play-logo.au3"
+
+Global $sConfigFile = @ScriptDir & "\ReadText.ini"
+
 FileChangeDir(@ScriptDir)
 logo(1)
 
@@ -83,6 +86,8 @@ If RegRead($sRegKey, $sAppName) = @ScriptFullPath Then
     GUICtrlSetState($chkStartup, $GUI_CHECKED)
 EndIf
 
+_LoadConfig()
+
 GuiSetState()
 
 HotKeySet("^s", "_SaveTextHotkey")
@@ -91,16 +96,17 @@ HotKeySet("^o", "_OpenTextHotkey")
 While 1
     Switch GuiGetMSG()
         Case $GUI_EVENT_CLOSE, $menu3
+            _SaveConfig()
             SoundPlay("sounds/exit.wav", 1)
             Exit
 
         Case $chkStartup
             If BitAND(GUICtrlRead($chkStartup), $GUI_CHECKED) = $GUI_CHECKED Then
                 SoundPlay("sounds/checked.wav")
-				RegWrite("HKCU\Software\Microsoft\Windows\CurrentVersion\Run", "ReadTextApp", "REG_SZ", @ScriptFullPath)
+                RegWrite("HKCU\Software\Microsoft\Windows\CurrentVersion\Run", "ReadTextApp", "REG_SZ", @ScriptFullPath)
             Else
                 SoundPlay("sounds/unchecked.wav")
-				RegDelete("HKCU\Software\Microsoft\Windows\CurrentVersion\Run", "ReadTextApp")
+                RegDelete("HKCU\Software\Microsoft\Windows\CurrentVersion\Run", "ReadTextApp")
             EndIf
 
         Case $btnGetClipboard
@@ -146,7 +152,7 @@ While 1
             ShellExecute("https://www.facebook.com/profile.php?id=100083295244149")
         Case $email
             SoundPlay("sounds/enter.wav")
-			ShellExecute("https://mail.google.com/mail/u/0/?fs=1&tf=cm&source=mailto&to=vodinhhungtnlg@gmail.com")
+            ShellExecute("https://mail.google.com/mail/u/0/?fs=1&tf=cm&source=mailto&to=vodinhhungtnlg@gmail.com")
         Case $menuitem2
             SoundPlay("sounds/enter.wav")
             Local $cFilePath = "readme\ReadmeEnglish.txt"
@@ -310,4 +316,38 @@ Func contribute()
                 ExitLoop
         EndSwitch
     WEnd
+EndFunc
+
+Func _LoadConfig()
+    If Not FileExists($sConfigFile) Then Return
+
+    Local $sVoice = IniRead($sConfigFile, "Settings", "Voice", "")
+    If $sVoice <> "" Then GUICtrlSetData($comboVoice, $sVoice)
+
+    Local $iVol = IniRead($sConfigFile, "Settings", "Volume", 100)
+    GUICtrlSetData($sliderVolume, $iVol)
+
+    Local $iRate = IniRead($sConfigFile, "Settings", "Rate", 0)
+    GUICtrlSetData($sliderRate, $iRate)
+
+    Local $iPitch = IniRead($sConfigFile, "Settings", "Pitch", 0)
+    GUICtrlSetData($sliderPitch, $iPitch)
+
+    Local $sLastText = IniRead($sConfigFile, "Data", "LastText", "")
+    $sLastText = StringReplace($sLastText, "¶", @CRLF)
+    GUICtrlSetData($entertext, $sLastText)
+EndFunc
+
+Func _SaveConfig()
+    IniWrite($sConfigFile, "Settings", "Voice", GUICtrlRead($comboVoice))
+
+    IniWrite($sConfigFile, "Settings", "Volume", GUICtrlRead($sliderVolume))
+
+    IniWrite($sConfigFile, "Settings", "Rate", GUICtrlRead($sliderRate))
+
+    IniWrite($sConfigFile, "Settings", "Pitch", GUICtrlRead($sliderPitch))
+
+    Local $sCurrentText = GUICtrlRead($entertext)
+    $sCurrentText = StringReplace($sCurrentText, @CRLF, "¶")
+    IniWrite($sConfigFile, "Data", "LastText", $sCurrentText)
 EndFunc

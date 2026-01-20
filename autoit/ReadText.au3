@@ -6,7 +6,9 @@
 #include <SliderConstants.au3>
 #include <GuiMenu.au3>
 #include "includes/play-logo.au3"
-
+Global Const $SVSFlagsAsync = 1
+Global Const $SVSFPurgeBeforeSpeak = 2
+Global $isPaused = False
 Global $sConfigFile = @ScriptDir & "\ReadText.ini"
 
 FileChangeDir(@ScriptDir)
@@ -19,7 +21,7 @@ If @error Then
     Exit
 EndIf
 
-Global $hGUI = GuiCreate("ReadTextV2.0(original version)", 300, 440)
+Global $hGUI = GuiCreate("ReadTextV2.0(original version)", 350, 560)
 GuiSetBkColor($COLOR_BLUE)
 
 GuiCtrlCreateLabel("&enter text", 10, 5)
@@ -47,12 +49,12 @@ GUICtrlSetData($sliderPitch, 0)
 
 $button = GuiCtrlCreateButton("Read&Text", 40, 150, 280, 30)
 $message = GuiCtrlCreateButton("m&y message", 200, 180, 80, 50)
-
 $saveText = GuiCtrlCreateButton("Save Text, Ctrl+S", 50, 230, 230, 30)
 $openText = GuiCtrlCreateButton("Open Text Files, Ctrl+O", 50, 260, 230, 30)
 $saveAudio = GuiCtrlCreateButton("Save &Audio", 50, 290, 230, 30)
-
 $tts = GuiCtrlCreateButton("&Listen text", 50, 320, 230, 30)
+$btnPause = GuiCtrlCreateButton("Pause", 120, 310, 100, 35)
+$btnStop = GuiCtrlCreateButton("Stop", 230, 310, 110, 35)
 
 $btnGetClipboard = GuiCtrlCreateButton("Get Text From &Clipboard", 50, 355, 230, 30)
 
@@ -100,7 +102,22 @@ While 1
             SoundPlay("sounds/exit.wav", 1)
             Exit
 
-        Case $chkStartup
+                Case $btnPause
+            If $isPaused Then
+                $g_oSAPI.Resume()
+                $isPaused = False
+                GUICtrlSetData($btnPause, "Pause")
+            Else
+                $g_oSAPI.Pause()
+                $isPaused = True
+                GUICtrlSetData($btnPause, "Resume")
+            EndIf
+        Case $btnStop
+            $g_oSAPI.Speak("", $SVSFPurgeBeforeSpeak)
+            $isPaused = False
+            GUICtrlSetData($btnPause, "Pause")
+
+		Case $chkStartup
             If BitAND(GUICtrlRead($chkStartup), $GUI_CHECKED) = $GUI_CHECKED Then
                 SoundPlay("sounds/checked.wav")
                 RegWrite("HKCU\Software\Microsoft\Windows\CurrentVersion\Run", "ReadTextApp", "REG_SZ", @ScriptFullPath)
@@ -145,7 +162,7 @@ While 1
         Case $email
             SoundPlay("sounds/enter.wav")
             ShellExecute("https://mail.google.com/mail/u/0/?fs=1&tf=cm&source=mailto&to=vodinhhungtnlg@gmail.com")
-        
+
         Case $menuitem2
             SoundPlay("sounds/enter.wav")
             _ShowFileContent("Tutorial (English)", "readme\ReadmeEnglish.txt")
@@ -201,7 +218,7 @@ Func _ShowFileContent($sTitle, $sFilePath)
         MsgBox(0, "Error", "Cannot find file: " & $sFilePath & @CRLF & "Please check if the file exists.")
         Return
     EndIf
-    
+
     Local $sContent = FileRead($sFilePath)
     If @error Then
         MsgBox(16, "Error", "Cannot read content of the file.")
@@ -211,9 +228,9 @@ Func _ShowFileContent($sTitle, $sFilePath)
     Local $displayGui = GuiCreate($sTitle, 500, 500)
     Local $document = GUICtrlCreateEdit($sContent, 20, 20, 450, 400, BitOR($ES_AUTOVSCROLL, $ES_READONLY, $WS_VSCROLL, $WS_TABSTOP))
     Local $btnClose = GUICtrlCreateButton("&Close", 200, 430, 100, 30, $WS_TABSTOP)
-    
+
     GuiSetState(@SW_SHOW, $displayGui)
-    
+
     While 1
         Switch GuiGetMSG()
             Case $GUI_EVENT_CLOSE, $btnClose

@@ -1,3 +1,4 @@
 Thanks to these people who contributed with me to the software: 
-Vo Dinh Hoang: code Function listen text tts. 
+Vo Dinh Hoang: He has added many new features to the software, such as checking for updates... These are huge contributions to the software, thank you once again to him.
 Vu Anh Loc: code logo and edit combo box. 
+Nguyen Ninh Hoang: He provided his GitHub repository so the software could check for updates or download releases. His GitHub repository helped the software get a really good server after the old one stopped working.

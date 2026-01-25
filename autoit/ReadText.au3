@@ -5,11 +5,19 @@
 #include <ComboConstants.au3>
 #include <SliderConstants.au3>
 #include <GuiMenu.au3>
+#include <WindowsConstants.au3>
 #include "includes/play-logo.au3"
+
+Global $oErrorHandler = ObjEvent("AutoIt.Error", "_ErrFunc")
+
+Global $sAppVersion = "2.0"
 Global Const $SVSFlagsAsync = 1
 Global Const $SVSFPurgeBeforeSpeak = 2
 Global $isPaused = False
 Global $sConfigFile = @ScriptDir & "\ReadText.ini"
+
+Global $bAutoUpdate = False
+Global $bAutoClipboard = False
 
 FileChangeDir(@ScriptDir)
 logo(1)
@@ -21,7 +29,7 @@ If @error Then
     Exit
 EndIf
 
-Global $hGUI = GuiCreate("ReadTextV2.0(original version)", 350, 560)
+Global $hGUI = GuiCreate("ReadTextV" & $sAppVersion & "(original version)", 350, 500) ; Giảm chiều cao GUI xuống một chút vì bớt 1 nút
 GuiSetBkColor($COLOR_BLUE)
 
 GuiCtrlCreateLabel("&enter text", 10, 5)
@@ -56,14 +64,14 @@ $tts = GuiCtrlCreateButton("&Listen text", 50, 320, 230, 30)
 $btnPause = GuiCtrlCreateButton("Pause", 120, 310, 100, 35)
 $btnStop = GuiCtrlCreateButton("Stop", 230, 310, 110, 35)
 
-$btnGetClipboard = GuiCtrlCreateButton("Get Text From &Clipboard", 50, 355, 230, 30)
+$btnGetClipboard = GuiCtrlCreateButton("Retrieve text from &clipboard", 50, 355, 230, 30)
 
-$btnMenuHelp = GuiCtrlCreateButton("&Menu", 50, 395, 230, 25)
+$btnMenuHelp = GuiCtrlCreateButton("&Menu", 50, 395, 230, 30)
 
 $dummyMenu = GuiCtrlCreateDummy()
 $contextMenu = GuiCtrlCreateContextMenu($dummyMenu)
-
 $menu1 = GuiCtrlCreateMenuItem("about...", $contextMenu)
+$menuUpdate = GuiCtrlCreateMenuItem("checked for &updates", $contextMenu)
 $menu2 = GuiCtrlCreateMenuItem("c&ontribute", $contextMenu)
 
 $SubMenu1 = GuiCtrlCreateMenu("tutorial", $contextMenu)
@@ -77,23 +85,24 @@ $email = GuiCtrlCreateMenuItem("Email", $subMenu2)
 $subMenu3 = GuiCtrlCreateMenu("rules", $contextMenu)
 $rules1 = GuiCtrlCreateMenuItem("vietnamese", $subMenu3)
 $rules2 = GuiCtrlCreateMenuItem("english", $subMenu3)
-
+$menuSettings = GuiCtrlCreateMenuItem("&Settings", $contextMenu)
 GuiCtrlCreateMenuItem("", $contextMenu)
 $menu3 = GuiCtrlCreateMenuItem("exit", $contextMenu)
-Global $chkStartup = GuiCtrlCreateCheckbox("startup with &windows", 180, 2, 100, 20)
-
-Local $sRegKey = "HKCU\Software\Microsoft\Windows\CurrentVersion\Run"
-Local $sAppName = "ReadTextApp"
-If RegRead($sRegKey, $sAppName) = @ScriptFullPath Then
-    GUICtrlSetState($chkStartup, $GUI_CHECKED)
-EndIf
-
 _LoadConfig()
 
 GuiSetState()
 
 HotKeySet("^s", "_SaveTextHotkey")
 HotKeySet("^o", "_OpenTextHotkey")
+
+If $bAutoClipboard Then
+    _GetClipboardText(True) ; True = Silent mode
+EndIf
+
+If $bAutoUpdate Then
+    _CheckGithubUpdate()
+EndIf
+; ----------------------------------
 
 While 1
     Switch GuiGetMSG()
@@ -102,7 +111,7 @@ While 1
             SoundPlay("sounds/exit.wav", 1)
             Exit
 
-                Case $btnPause
+        Case $btnPause
             If $isPaused Then
                 $g_oSAPI.Resume()
                 $isPaused = False
@@ -117,30 +126,23 @@ While 1
             $isPaused = False
             GUICtrlSetData($btnPause, "Pause")
 
-		Case $chkStartup
-            If BitAND(GUICtrlRead($chkStartup), $GUI_CHECKED) = $GUI_CHECKED Then
-                SoundPlay("sounds/checked.wav")
-                RegWrite("HKCU\Software\Microsoft\Windows\CurrentVersion\Run", "ReadTextApp", "REG_SZ", @ScriptFullPath)
-            Else
-                SoundPlay("sounds/unchecked.wav")
-                RegDelete("HKCU\Software\Microsoft\Windows\CurrentVersion\Run", "ReadTextApp")
-            EndIf
+        Case $menuSettings ; <-- Đổi từ $btnSettings sang $menuSettings
+            SoundPlay("sounds/enter.wav")
+            _ShowSettings()
 
         Case $btnGetClipboard
             SoundPlay("sounds/enter.wav")
-            Local $sClipText = ClipGet()
-
-            If @error Or StringStripWS($sClipText, 8) = "" Then
-                MsgBox(48, "Warning", "The clipboard is empty! Please copy the text to the clipboard")
-            Else
-                GUICtrlSetData($entertext, $sClipText)
-                MsgBox(64, "Success", "Text retrieved from clipboard successfully")
-            EndIf
+            _GetClipboardText(False) ; False
 
         Case $btnMenuHelp
              SoundPlay("sounds/enter.wav")
              Local $hMenuHandle = GuiCtrlGetHandle($contextMenu)
              _GUICtrlMenu_TrackPopupMenu($hMenuHandle, $hGUI)
+
+        Case $menuUpdate
+            SoundPlay("sounds/enter.wav")
+            _CheckGithubUpdate()
+        ; -----------------------------------------------------
 
         Case $rules1
             SoundPlay("sounds/enter.wav")
@@ -152,10 +154,10 @@ While 1
 
         Case $menu1
             SoundPlay("sounds/enter.wav")
-            MsgBox(64, "about", "ReadText version: 2.0, by developer vo dinh hung, this is original version. Thanks for using the software.")
+            MsgBox(64, "about", "ReadText version: " & $sAppVersion & ", by developer vo dinh hung. Thanks for using the software.")
         Case $message
             SoundPlay("sounds/message.wav")
-            MsgBox(0, "message", "Hello everyone, it's the last time everyone uses ReadText software. Thank you everyone for using my software, this is the final version of the software I developed. I have to stop developing the software because I myself have no ideas for my software. If you have ideas or need to contact, please contact via the following applications: email: vodinhhungtnlg@gmail.com, facebook: Phaolo Vo Dinh Hung")
+            MsgBox(0, "message", "Hello everyone, it's the last time everyone uses ReadText software. Thank you everyone for using my software.")
         Case $facebook
             SoundPlay("sounds/enter.wav")
             ShellExecute("https://www.facebook.com/profile.php?id=100083295244149")
@@ -212,6 +214,169 @@ While 1
             contribute()
     EndSwitch
 WEnd
+
+Func _ShowSettings()
+    Local $hSettingGUI = GuiCreate("Settings", 350, 200, -1, -1, BitOR($WS_CAPTION, $WS_POPUP, $WS_SYSMENU), -1, $hGUI)
+    GuiSetBkColor($COLOR_WHITE)
+
+    Local $chkAutoUpdate = GuiCtrlCreateCheckbox("Automatically checked for updates on startup", 20, 20, 300, 20)
+    Local $chkAutoClip = GuiCtrlCreateCheckbox("Automatically retrieve text from clipboard", 20, 50, 300, 20)
+    Local $chkStartupWin = GuiCtrlCreateCheckbox("Startup with Windows", 20, 80, 300, 20)
+
+    Local $btnOk = GuiCtrlCreateButton("&OK", 60, 130, 80, 30)
+    Local $btnCancel = GuiCtrlCreateButton("&Cancel", 200, 130, 80, 30)
+
+    If $bAutoUpdate Then GUICtrlSetState($chkAutoUpdate, $GUI_CHECKED)
+    If $bAutoClipboard Then GUICtrlSetState($chkAutoClip, $GUI_CHECKED)
+
+    Local $sRegKey = "HKCU\Software\Microsoft\Windows\CurrentVersion\Run"
+    Local $sAppName = "ReadTextApp"
+    If RegRead($sRegKey, $sAppName) = @ScriptFullPath Then
+        GUICtrlSetState($chkStartupWin, $GUI_CHECKED)
+    EndIf
+
+    GuiSetState(@SW_SHOW, $hSettingGUI)
+
+    While 1
+        Switch GuiGetMSG()
+            Case $GUI_EVENT_CLOSE, $btnCancel
+                GuiDelete($hSettingGUI)
+                Return
+
+            Case $btnOk
+                $bAutoUpdate = (BitAND(GUICtrlRead($chkAutoUpdate), $GUI_CHECKED) = $GUI_CHECKED)
+                $bAutoClipboard = (BitAND(GUICtrlRead($chkAutoClip), $GUI_CHECKED) = $GUI_CHECKED)
+
+                IniWrite($sConfigFile, "Settings", "AutoUpdate", $bAutoUpdate ? "true" : "false")
+                IniWrite($sConfigFile, "Settings", "AutoClipboard", $bAutoClipboard ? "true" : "false")
+
+                If BitAND(GUICtrlRead($chkStartupWin), $GUI_CHECKED) = $GUI_CHECKED Then
+                    RegWrite($sRegKey, $sAppName, "REG_SZ", @ScriptFullPath)
+                Else
+                    RegDelete($sRegKey, $sAppName)
+                EndIf
+
+                SoundPlay("sounds/enter.wav")
+                GuiDelete($hSettingGUI)
+                Return
+        EndSwitch
+    WEnd
+EndFunc
+
+Func _GetClipboardText($bSilent)
+    Local $sClipText = ClipGet()
+    If @error Or StringStripWS($sClipText, 8) = "" Then
+        If Not $bSilent Then MsgBox(48, "Warning", "The clipboard is empty! Please copy the text to the clipboard")
+    Else
+        GUICtrlSetData($entertext, $sClipText)
+        If Not $bSilent Then MsgBox(64, "Success", "Text retrieved from clipboard successfully")
+    EndIf
+EndFunc
+
+Func _CheckGithubUpdate()
+
+    Local $sCheckingText = "Checking for updates..."
+    Local $hCheckGUI = GuiCreate("", 300, 80, -1, -1, BitOR($WS_CAPTION, $WS_POPUP), BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW))
+    GuiSetBkColor(0xFFFFFF, $hCheckGUI)
+    Local $lblCheck = GuiCtrlCreateLabel($sCheckingText, 10, 25, 280, 30, $ES_CENTER)
+    GuiCtrlSetFont($lblCheck, 10, 400, 0, "Arial")
+    GuiSetState(@SW_SHOW, $hCheckGUI)
+    Sleep(3000)
+    GuiDelete($hCheckGUI)
+
+    If Ping("github.com", 2000) = 0 And Ping("google.com", 2000) = 0 Then
+         SoundPlay("sounds/update_error.wav")
+         MsgBox(48, "Check Update", "No internet connection.")
+         Return
+    EndIf
+
+    Local $sRepoOwner = "ninhhoang2005"
+    Local $sRepoName = "read_text"
+    Local $sApiUrl = "https://api.github.com/repos/ninhhoang2005/read_text/releases/latest"
+
+    Local $oHTTP = ObjCreate("WinHttp.WinHttpRequest.5.1")
+    If Not IsObj($oHTTP) Then
+        MsgBox(16, "Error", "Cannot create HTTP Object.")
+        Return
+    EndIf
+
+    $oHTTP.Open("GET", $sApiUrl, False)
+
+    $oHTTP.Send()
+
+    If @error Then
+        SoundPlay("sounds/update_error.wav")
+        MsgBox(48, "Check Update", "Connection failed. Please check your internet.")
+        Return
+    EndIf
+
+    If $oHTTP.Status <> 200 Then
+        MsgBox(48, "Check Update", "Cannot connect to update server or no release found." & @CRLF & "Status Code: " & $oHTTP.Status)
+        Return
+    EndIf
+
+    Local $sResponse = $oHTTP.ResponseText
+
+    Local $aMatch = StringRegExp($sResponse, '"tag_name":\s*"([^"]+)"', 3)
+
+    If IsArray($aMatch) Then
+        Local $sLatestVersion = $aMatch[0]
+        $sLatestVersion = StringReplace($sLatestVersion, "v", "")
+        If $sLatestVersion <> $sAppVersion Then
+            SoundPlay("sounds/update.wav")
+            Local $iMsg = MsgBox(36, "Update Available", "A new version (" & $sLatestVersion & ") is available!" & @CRLF & _
+                                     "Your version: " & $sAppVersion & @CRLF & @CRLF & _
+                                     "Do you want to download it now?")
+            If $iMsg = 6 Then
+                $downloadtext = "please wait"
+                $downloadGui = GuiCreate("downloading update", 400, 400, -1, -1)
+                GuiSetBkColor($COLOR_WHITE)
+                GuiCtrlCreateLabel($downloadtext, 40, 60)
+                GuiSetState(@SW_SHOW, $downloadGui)
+                Local $sDownloadURL = "https://github.com/ninhhoang2005/read_text/releases/latest/download/read_text.zip"
+                Local $sSavePath = @ScriptDir & "\ReadText_Update.zip"
+
+                ProgressOn("Downloading Update", "Please wait while downloading...", "0%")
+
+                DllCall("winmm.dll", "int", "PlaySoundW", "wstr", @ScriptDir & "\sounds\updating.wav", "ptr", 0, "dword", 0x0009)
+
+                Local $hDownload = InetGet($sDownloadURL, $sSavePath, 1, 1)
+
+                Do
+                    Sleep(100)
+                    Local $iBytesRead = InetGetInfo($hDownload, 0)
+                    Local $iFileSize = InetGetInfo($hDownload, 1)
+
+                    If $iFileSize > 0 Then
+                        Local $iPct = Round(($iBytesRead / $iFileSize) * 100)
+                        ProgressSet($iPct, $iPct & "% complete")
+                    Else
+                        ProgressSet(0, "Connecting...")
+                    EndIf
+
+                Until InetGetInfo($hDownload, 2)
+
+                InetClose($hDownload)
+
+                DllCall("winmm.dll", "int", "PlaySoundW", "ptr", 0, "ptr", 0, "dword", 0)
+
+                ProgressOff()
+                GuiDelete($downloadGui)
+
+                SoundPlay("sounds/updated.wav")
+
+                MsgBox(64, "Success", "Downloaded successfully!" & @CRLF & "File saved as: " & $sSavePath)
+
+                ; ShellExecute($sSavePath)
+            EndIf
+        Else
+            MsgBox(64, "no update available", "You are using the latest version (" & $sAppVersion & ").")
+        EndIf
+    Else
+        MsgBox(16, "Error", "Could not parse version information.")
+    EndIf
+EndFunc
+; -------------------------------------------------------------
 
 Func _ShowFileContent($sTitle, $sFilePath)
     If Not FileExists($sFilePath) Then
@@ -362,6 +527,9 @@ Func _LoadConfig()
 
     Local $iPitch = IniRead($sConfigFile, "Settings", "Pitch", 0)
     GUICtrlSetData($sliderPitch, $iPitch)
+    
+    $bAutoUpdate = (IniRead($sConfigFile, "Settings", "AutoUpdate", "false") = "true")
+    $bAutoClipboard = (IniRead($sConfigFile, "Settings", "AutoClipboard", "false") = "true")
 
     Local $sLastText = IniRead($sConfigFile, "Data", "LastText", "")
     $sLastText = StringReplace($sLastText, "¶", @CRLF)
@@ -376,8 +544,14 @@ Func _SaveConfig()
     IniWrite($sConfigFile, "Settings", "Rate", GUICtrlRead($sliderRate))
 
     IniWrite($sConfigFile, "Settings", "Pitch", GUICtrlRead($sliderPitch))
+    
+    IniWrite($sConfigFile, "Settings", "AutoUpdate", $bAutoUpdate ? "true" : "false")
+    IniWrite($sConfigFile, "Settings", "AutoClipboard", $bAutoClipboard ? "true" : "false")
 
     Local $sCurrentText = GUICtrlRead($entertext)
     $sCurrentText = StringReplace($sCurrentText, @CRLF, "¶")
     IniWrite($sConfigFile, "Data", "LastText", $sCurrentText)
+EndFunc
+
+Func _ErrFunc()
 EndFunc

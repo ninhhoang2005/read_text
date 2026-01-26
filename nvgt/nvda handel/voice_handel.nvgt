@@ -1,5 +1,0 @@
-#include "speech.nvgt"
-void main()
-{
-speak(COMMAND_LINE);
-}

@@ -366,11 +366,10 @@ Func _CheckGithubUpdate()
                 SoundPlay("sounds/updated.wav")
 
                 MsgBox(64, "Success", "Downloaded successfully!" & @CRLF & "File saved as: " & $sSavePath)
-Run("unzip.bat")
+
                 ; ShellExecute($sSavePath)
-            Exit
-			EndIf
-			Else
+            EndIf
+        Else
             MsgBox(64, "no update available", "You are using the latest version (" & $sAppVersion & ").")
         EndIf
     Else
@@ -528,7 +527,7 @@ Func _LoadConfig()
 
     Local $iPitch = IniRead($sConfigFile, "Settings", "Pitch", 0)
     GUICtrlSetData($sliderPitch, $iPitch)
-
+    
     $bAutoUpdate = (IniRead($sConfigFile, "Settings", "AutoUpdate", "false") = "true")
     $bAutoClipboard = (IniRead($sConfigFile, "Settings", "AutoClipboard", "false") = "true")
 
@@ -545,7 +544,7 @@ Func _SaveConfig()
     IniWrite($sConfigFile, "Settings", "Rate", GUICtrlRead($sliderRate))
 
     IniWrite($sConfigFile, "Settings", "Pitch", GUICtrlRead($sliderPitch))
-
+    
     IniWrite($sConfigFile, "Settings", "AutoUpdate", $bAutoUpdate ? "true" : "false")
     IniWrite($sConfigFile, "Settings", "AutoClipboard", $bAutoClipboard ? "true" : "false")
 

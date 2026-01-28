@@ -29,7 +29,7 @@ If @error Then
     Exit
 EndIf
 
-Global $hGUI = GuiCreate("ReadTextV" & $sAppVersion & "(original version)", 350, 500) ; Giảm chiều cao GUI xuống một chút vì bớt 1 nút
+Global $hGUI = GuiCreate("ReadTextV" & $sAppVersion & "(original version)", 350, 500)
 GuiSetBkColor($COLOR_BLUE)
 
 GuiCtrlCreateLabel("&enter text", 10, 5)
@@ -85,7 +85,7 @@ $email = GuiCtrlCreateMenuItem("Email", $subMenu2)
 $subMenu3 = GuiCtrlCreateMenu("rules", $contextMenu)
 $rules1 = GuiCtrlCreateMenuItem("vietnamese", $subMenu3)
 $rules2 = GuiCtrlCreateMenuItem("english", $subMenu3)
-$menuSettings = GuiCtrlCreateMenuItem("&Settings", $contextMenu)
+$menuSettings = GuiCtrlCreateMenuItem("Settings...	Ctrl+shift+s", $contextMenu)
 GuiCtrlCreateMenuItem("", $contextMenu)
 $menu3 = GuiCtrlCreateMenuItem("exit", $contextMenu)
 _LoadConfig()
@@ -94,7 +94,7 @@ GuiSetState()
 
 HotKeySet("^s", "_SaveTextHotkey")
 HotKeySet("^o", "_OpenTextHotkey")
-
+HotKeySet("^+s", "_ShowSettings")
 If $bAutoClipboard Then
     _GetClipboardText(True) ; True = Silent mode
 EndIf
@@ -126,8 +126,7 @@ While 1
             $isPaused = False
             GUICtrlSetData($btnPause, "Pause")
 
-        Case $menuSettings ; <-- Đổi từ $btnSettings sang $menuSettings
-            SoundPlay("sounds/enter.wav")
+        Case $menuSettings
             _ShowSettings()
 
         Case $btnGetClipboard
@@ -216,7 +215,8 @@ While 1
 WEnd
 
 Func _ShowSettings()
-    Local $hSettingGUI = GuiCreate("Settings", 350, 200, -1, -1, BitOR($WS_CAPTION, $WS_POPUP, $WS_SYSMENU), -1, $hGUI)
+    SoundPlay("sounds/enter.wav")
+	Local $hSettingGUI = GuiCreate("Settings", 350, 200, -1, -1, BitOR($WS_CAPTION, $WS_POPUP, $WS_SYSMENU), -1, $hGUI)
     GuiSetBkColor($COLOR_WHITE)
 
     Local $chkAutoUpdate = GuiCtrlCreateCheckbox("Automatically checked for updates on startup", 20, 20, 300, 20)

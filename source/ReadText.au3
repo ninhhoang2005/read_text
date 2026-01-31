@@ -98,9 +98,6 @@ _LoadConfig()
 
 GuiSetState()
 
-HotKeySet("^s", "_SaveTextHotkey")
-HotKeySet("^o", "_OpenTextHotkey")
-HotKeySet("^+s", "_ShowSettings")
 If $bAutoClipboard Then
     _GetClipboardText(True)
 EndIf
@@ -108,6 +105,9 @@ EndIf
 If $bAutoUpdate Then
     _CheckGithubUpdate()
 EndIf
+
+Local $aAccelKeys[3][2] = [["^s", $saveText], ["^o", $openText], ["^+s", $menuSettings]]
+GUISetAccelerators($aAccelKeys)
 
 While 1
     Switch GuiGetMSG()

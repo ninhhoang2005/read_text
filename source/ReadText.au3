@@ -79,7 +79,6 @@ $menu1 = GuiCtrlCreateMenuItem("about...", $contextMenu)
 $menuUpdate = GuiCtrlCreateMenuItem("checked for &updates", $contextMenu)
 $menu2 = GuiCtrlCreateMenuItem("c&ontribute", $contextMenu)
 $menuChangelog = GuiCtrlCreateMenuItem("view changelog", $contextMenu)
-
 $SubMenu1 = GuiCtrlCreateMenu("tutorial", $contextMenu)
 $menuitem1 = GuiCtrlCreateMenuItem("vietnamese", $SubMenu1)
 $menuitem2 = GuiCtrlCreateMenuItem("english", $SubMenu1)
@@ -99,6 +98,8 @@ _LoadConfig()
 
 GuiSetState()
 
+Local $aAccelKeys[3][2] = [["^s", $saveText], ["^o", $openText], ["^+s", $menuSettings]]
+GUISetAccelerators($aAccelKeys)
 If $bAutoClipboard Then
     _GetClipboardText(True)
 EndIf
@@ -107,20 +108,16 @@ If $bAutoUpdate Then
     _CheckGithubUpdate()
 EndIf
 
-Local $aAccelKeys[3][2] = [["^s", $saveText], ["^o", $openText], ["^+s", $menuSettings]]
-GUISetAccelerators($aAccelKeys)
-
 While 1
     Switch GuiGetMSG()
         Case $GUI_EVENT_CLOSE, $menu3
             _SaveConfig()
             SoundPlay(@ScriptDir & "\sounds\exit.wav", 1)
             Exit
-
-        Case $menuChangelog
+		Case $menuChangelog
 SoundPlay("sounds/enter.wav")
 _ShowChangelog()
-		Case $btnPause
+        Case $btnPause
             If Not IsGoogleVoice(GuiCtrlRead($comboVoice)) Then
                 If $isPaused Then
                     $g_oSAPI.Resume()
@@ -436,7 +433,108 @@ Func _GetClipboardText($bSilent)
 EndFunc
 
 Func _CheckGithubUpdate()
-    ; [Code update giữ nguyên như cũ]
+
+    Local $sCheckingText = "Checking for updates..."
+    Local $hCheckGUI = GuiCreate("", 300, 80, -1, -1, BitOR($WS_CAPTION, $WS_POPUP), BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW))
+    GuiSetBkColor(0xFFFFFF, $hCheckGUI)
+    Local $lblCheck = GuiCtrlCreateLabel($sCheckingText, 10, 25, 280, 30, $ES_CENTER)
+    GuiCtrlSetFont($lblCheck, 10, 400, 0, "Arial")
+    GuiSetState(@SW_SHOW, $hCheckGUI)
+    Sleep(3000)
+    GuiDelete($hCheckGUI)
+
+    If Ping("github.com", 2000) = 0 And Ping("google.com", 2000) = 0 Then
+         SoundPlay("sounds/update_error.wav")
+         MsgBox(48, "Check Update", "No internet connection.")
+         Return
+    EndIf
+
+    Local $sRepoOwner = "ninhhoang2005"
+    Local $sRepoName = "read_text"
+    Local $sApiUrl = "https://api.github.com/repos/ninhhoang2005/read_text/releases/latest"
+
+    Local $oHTTP = ObjCreate("WinHttp.WinHttpRequest.5.1")
+    If Not IsObj($oHTTP) Then
+        MsgBox(16, "Error", "Cannot create HTTP Object.")
+        Return
+    EndIf
+
+    $oHTTP.Open("GET", $sApiUrl, False)
+
+    $oHTTP.Send()
+
+    If @error Then
+        SoundPlay("sounds/update_error.wav")
+        MsgBox(48, "Check Update", "Connection failed. Please check your internet.")
+        Return
+    EndIf
+
+    If $oHTTP.Status <> 200 Then
+        MsgBox(48, "Check Update", "Cannot connect to update server or no release found." & @CRLF & "Status Code: " & $oHTTP.Status)
+        Return
+    EndIf
+
+    Local $sResponse = $oHTTP.ResponseText
+
+    Local $aMatch = StringRegExp($sResponse, '"tag_name":\s*"([^"]+)"', 3)
+
+    If IsArray($aMatch) Then
+        Local $sLatestVersion = $aMatch[0]
+        $sLatestVersion = StringReplace($sLatestVersion, "v", "")
+        If $sLatestVersion <> $sAppVersion Then
+            SoundPlay("sounds/update.wav")
+            Local $iMsg = MsgBox(36, "Update Available", "A new version (" & $sLatestVersion & ") is available!" & @CRLF & _
+                                     "Your version: " & $sAppVersion & @CRLF & @CRLF & _
+                                     "Do you want to download it now?")
+            If $iMsg = 6 Then
+                $downloadtext = "please wait"
+                $downloadGui = GuiCreate("downloading update", 400, 400, -1, -1)
+                GuiSetBkColor($COLOR_WHITE)
+                GuiCtrlCreateLabel($downloadtext, 40, 60)
+                GuiSetState(@SW_SHOW, $downloadGui)
+                Local $sDownloadURL = "https://github.com/ninhhoang2005/read_text/releases/latest/download/read_text.zip"
+                Local $sSavePath = @ScriptDir & "\read_text.zip"
+
+                ProgressOn("Downloading Update", "Please wait while downloading...", "0%")
+
+                DllCall("winmm.dll", "int", "PlaySoundW", "wstr", @ScriptDir & "\sounds\updating.wav", "ptr", 0, "dword", 0x0009)
+
+                Local $hDownload = InetGet($sDownloadURL, $sSavePath, 1, 1)
+
+                Do
+                    Sleep(100)
+                    Local $iBytesRead = InetGetInfo($hDownload, 0)
+                    Local $iFileSize = InetGetInfo($hDownload, 1)
+
+                    If $iFileSize > 0 Then
+                        Local $iPct = Round(($iBytesRead / $iFileSize) * 100)
+                        ProgressSet($iPct, $iPct & "% complete")
+                    Else
+                        ProgressSet(0, "Connecting...")
+                    EndIf
+
+                Until InetGetInfo($hDownload, 2)
+
+                InetClose($hDownload)
+
+                DllCall("winmm.dll", "int", "PlaySoundW", "ptr", 0, "ptr", 0, "dword", 0)
+
+                ProgressOff()
+                GuiDelete($downloadGui)
+
+                SoundPlay("sounds/updated.wav")
+
+                MsgBox(64, "Success", "Downloaded successfully!" & @CRLF & "File saved as: " & $sSavePath)
+Run("unzip.bat")
+                ; ShellExecute($sSavePath)
+Exit
+            EndIf
+        Else
+            MsgBox(64, "no update available", "You are using the latest version (" & $sAppVersion & ").")
+        EndIf
+    Else
+        MsgBox(16, "Error", "Could not parse version information.")
+    EndIf
 EndFunc
 
 Func _ShowFileContent($sTitle, $sFilePath)

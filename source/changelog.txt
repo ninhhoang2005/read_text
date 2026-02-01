@@ -1,0 +1,28 @@
+changes for 2.0
+From this version users can see the changes and most important features will be noted here. Thank you to the devs for your hard work.
+- add volume, pitch and rate slider
+- add menu button to make the interface neater.
+- add save text Users can save in .txt format.
+- add open text file If you have a text that is too long to type into the input box, this is a feature specifically for that. you can open file.txt.
+- add save audio You can save the text in .wav format.
+- add get text from the clipboard You can copy any text from the editor on your computer and the software will read it when you activate this button. If the software does not receive the text from the clipboard, it will immediately display an error warning.
+- Redesigned the entire interface to be more beautiful.
+- enter sound had been change.
+- We have also implemented the startup with window feature so you can use the software conveniently without having to run the executable file multiple times.
+- Now the user's configuration will be save in file.ini.
+- Now users can read instructions directly on the software without going through the default notepad editor.
+- add some new sound.
+- Fixed bug with voice text reading: when a text was too long it would cause the app to crash.
+- now in the menu there are more settings options
+- There is a system to check for updates to the software.
+- The interface will be neater.
+- Added stop and pause buttons when users listen to text that is too long.
+- Added feature to automatically check for updates on startup.
+- update new sounds.
+- change name of label get text from clipboard button to Retrieve text from clipboard button.
+- add unzip.bat to extract after download update.
+- add google voice.
+- add Speak to Text button: you need using microphone to speack.
+- update some new sounds.
+- add new keyboard shortcut to access settings ((control+shift+s).
+- add view changelog in menu.

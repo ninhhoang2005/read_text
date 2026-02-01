@@ -78,6 +78,7 @@ $contextMenu = GuiCtrlCreateContextMenu($dummyMenu)
 $menu1 = GuiCtrlCreateMenuItem("about...", $contextMenu)
 $menuUpdate = GuiCtrlCreateMenuItem("checked for &updates", $contextMenu)
 $menu2 = GuiCtrlCreateMenuItem("c&ontribute", $contextMenu)
+$menuChangelog = GuiCtrlCreateMenuItem("view changelog", $contextMenu)
 
 $SubMenu1 = GuiCtrlCreateMenu("tutorial", $contextMenu)
 $menuitem1 = GuiCtrlCreateMenuItem("vietnamese", $SubMenu1)
@@ -116,7 +117,10 @@ While 1
             SoundPlay(@ScriptDir & "\sounds\exit.wav", 1)
             Exit
 
-        Case $btnPause
+        Case $menuChangelog
+SoundPlay("sounds/enter.wav")
+_ShowChangelog()
+		Case $btnPause
             If Not IsGoogleVoice(GuiCtrlRead($comboVoice)) Then
                 If $isPaused Then
                     $g_oSAPI.Resume()
@@ -536,6 +540,30 @@ Func _SaveConfig()
     Local $sCurrentText = GUICtrlRead($entertext)
     $sCurrentText = StringReplace($sCurrentText, @CRLF, "¶")
     IniWrite($sConfigFile, "Data", "LastText", $sCurrentText)
+EndFunc
+Func _ShowChangelog()
+    Local $sFilePath = @ScriptDir & "\changelog.txt"
+    Local $sContent = "No changelog found."
+
+    If FileExists($sFilePath) Then
+        $sContent = FileRead($sFilePath)
+    EndIf
+
+    Local $hChangelogGUI = GuiCreate("Changelog", 400, 450)
+
+    Local $editChangelog = GUICtrlCreateEdit($sContent, 10, 10, 380, 380, BitOR($ES_AUTOVSCROLL, $ES_READONLY, $WS_VSCROLL, $WS_TABSTOP))
+
+    Local $btnClose = GUICtrlCreateButton("&Close", 150, 400, 100, 30, $WS_TABSTOP)
+
+    GuiSetState(@SW_SHOW, $hChangelogGUI)
+
+    While 1
+        Switch GuiGetMSG()
+            Case $GUI_EVENT_CLOSE, $btnClose
+                GuiDelete($hChangelogGUI)
+                ExitLoop
+        EndSwitch
+    WEnd
 EndFunc
 
 Func _ErrFunc()

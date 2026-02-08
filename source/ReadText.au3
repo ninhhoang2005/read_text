@@ -23,6 +23,13 @@ Global $bAutoClipboard = False
 Global $sGoogleVoiceExe = @ScriptDir & "\lib\google_voice.exe"
 Global $sSpeakExe = @ScriptDir & "\lib\SpeakToText.exe"
 
+; --- Theme Variables ---
+Global $bDarkMode = False
+Global $nBgColor = $COLOR_BLUE
+Global $nTextColor = $COLOR_WHITE
+Global $nEditBg = $COLOR_WHITE
+Global $nEditColor = $COLOR_BLACK
+
 FileChangeDir(@ScriptDir)
 logo(1)
 
@@ -71,7 +78,10 @@ $btnGetClipboard = GuiCtrlCreateButton("Retrieve text from &clipboard", 50, 355,
 
 $btnSpeakToText = GuiCtrlCreateButton("Speak to Text (Microphone)", 50, 390, 230, 30)
 
-$btnMenuHelp = GuiCtrlCreateButton("&Menu", 50, 430, 230, 30)
+$btnOCR = GuiCtrlCreateButton("Read from Screen (OCR)", 50, 425, 230, 30)
+GUICtrlSetBkColor(-1, 0xFFCC00) ; Highlight OCR button
+
+$btnMenuHelp = GuiCtrlCreateButton("&Menu", 50, 465, 230, 30)
 
 $dummyMenu = GuiCtrlCreateDummy()
 $contextMenu = GuiCtrlCreateContextMenu($dummyMenu)
@@ -90,6 +100,7 @@ $email = GuiCtrlCreateMenuItem("Email", $subMenu2)
 $subMenu3 = GuiCtrlCreateMenu("rules", $contextMenu)
 $rules1 = GuiCtrlCreateMenuItem("vietnamese", $subMenu3)
 $rules2 = GuiCtrlCreateMenuItem("english", $subMenu3)
+$menuTheme = GuiCtrlCreateMenuItem("Toggle Dark Mode", $contextMenu)
 $menuSettings = GuiCtrlCreateMenuItem("Settings...	Ctrl+shift+s", $contextMenu)
 GuiCtrlCreateMenuItem("", $contextMenu)
 $menu3 = GuiCtrlCreateMenuItem("exit", $contextMenu)
@@ -147,6 +158,13 @@ _ShowChangelog()
         Case $btnSpeakToText
             ; SoundPlay("sounds/enter.wav")
             _PerformSpeakToText()
+
+        Case $btnOCR
+            SoundPlay("sounds/enter.wav")
+            _PerformOCR()
+
+        Case $menuTheme
+            _ToggleTheme()
 
         Case $btnMenuHelp
              SoundPlay("sounds/enter.wav")
@@ -279,12 +297,85 @@ Func _PerformSpeakToText()
 
     If $sOutput <> "" Then
         Local $sCurrentText = GuiCtrlRead($entertext)
-        If $sCurrentText <> "" Then
+        if $sCurrentText <> "" Then
             GuiCtrlSetData($entertext, $sCurrentText & " " & $sOutput)
         Else
             GuiCtrlSetData($entertext, $sOutput)
         EndIf
     EndIf
+EndFunc
+
+Func _PerformOCR()
+    ToolTip("Select area to OCR (Screen capture starts in 1 sec)...")
+    Sleep(1000)
+    ToolTip("")
+    
+    ; Using PowerShell to capture screen and OCR
+    Local $psScript = 'Add-Type -AssemblyName System.Windows.Forms;' & _
+        '[System.Windows.Forms.SendKeys]::SendWait("{PRTSC}");' & _
+        'Start-Sleep -m 500;' & _
+        '$img = [System.Windows.Forms.Clipboard]::GetImage();' & _
+        'if ($img -eq $null) { Write-Output "No image in clipboard"; exit };' & _
+        '$ms = New-Object System.IO.MemoryStream;' & _
+        '$img.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png);' & _
+        '$randomFile = [System.IO.Path]::GetTempFileName() + ".png";' & _
+        '[System.IO.File]::WriteAllBytes($randomFile, $ms.ToArray());' & _
+        'Add-Type -AssemblyName System.Runtime.WindowsRuntime;' & _
+        'try {' & _
+        '  [Windows.Graphics.Imaging.BitmapDecoder, Windows.Graphics.Imaging, ContentType=WindowsRuntime] | Out-Null;' & _
+        '  $asyncOp = [Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync([Windows.Storage.Streams.RandomAccessStreamReference]::CreateFromFile([Windows.Storage.StorageFile]::GetFileFromPathAsync($randomFile).GetAwaiter().GetResult()));' & _
+        '  $decoder = $asyncOp.GetAwaiter().GetResult();' & _
+        '  $softwareBitmap = $decoder.GetSoftwareBitmapAsync().GetAwaiter().GetResult();' & _
+        '  $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages();' & _
+        '  $result = $engine.RecognizeAsync($softwareBitmap).GetAwaiter().GetResult();' & _
+        '  Write-Output $result.Text;' & _
+        '} catch { Write-Output ("OCR Failed: " + $_.Exception.Message) }' & _
+        'Remove-Item $randomFile -ErrorAction SilentlyContinue;'
+
+    Local $iPID = Run('powershell -NoProfile -ExecutionPolicy Bypass -Command "' & $psScript & '"', @ScriptDir, @SW_HIDE, $STDOUT_CHILD)
+    Local $sOutput = ""
+    While ProcessExists($iPID)
+        $sOutput &= StdoutRead($iPID)
+        Sleep(50)
+    WEnd
+    $sOutput &= StdoutRead($iPID)
+    
+    If StringStripWS($sOutput, 3) <> "" And Not StringInStr($sOutput, "Failed") Then
+        Local $sCurrentText = GuiCtrlRead($entertext)
+        If $sCurrentText <> "" Then
+            GuiCtrlSetData($entertext, $sCurrentText & @CRLF & $sOutput)
+        Else
+            GuiCtrlSetData($entertext, $sOutput)
+        EndIf
+        SoundPlay("sounds/updated.wav")
+    Else
+        MsgBox(16, "OCR Error", "Could not recognize text or OCR engine not available. Make sure you have text on screen and using Win 10/11.")
+    EndIf
+EndFunc
+
+Func _ToggleTheme()
+    $bDarkMode = Not $bDarkMode
+    _ApplyTheme()
+    IniWrite($sConfigFile, "Settings", "DarkMode", $bDarkMode ? "true" : "false")
+EndFunc
+
+Func _ApplyTheme()
+    If $bDarkMode Then
+        $nBgColor = 0x202020
+        $nTextColor = 0xFFFFFF
+        $nEditBg = 0x333333
+        $nEditColor = 0xFFFFFF
+    Else
+        $nBgColor = $COLOR_BLUE
+        $nTextColor = $COLOR_WHITE
+        $nEditBg = 0xFFFFFF
+        $nEditColor = 0x000000
+    EndIf
+    
+    GuiSetBkColor($nBgColor, $hGUI)
+    GuiCtrlSetBkColor($entertext, $nEditBg)
+    GuiCtrlSetColor($entertext, $nEditColor)
+    ; In a real app, we'd loop through all controls, but for this GUI, let's keep it simple.
 EndFunc
 
 Func IsGoogleVoice($sName)
@@ -623,6 +714,8 @@ Func _LoadConfig()
     GUICtrlSetData($sliderPitch, $iPitch)
     $bAutoUpdate = (IniRead($sConfigFile, "Settings", "AutoUpdate", "false") = "true")
     $bAutoClipboard = (IniRead($sConfigFile, "Settings", "AutoClipboard", "false") = "true")
+    $bDarkMode = (IniRead($sConfigFile, "Settings", "DarkMode", "false") = "true")
+    _ApplyTheme()
     Local $sLastText = IniRead($sConfigFile, "Data", "LastText", "")
     $sLastText = StringReplace($sLastText, "¶", @CRLF)
     GUICtrlSetData($entertext, $sLastText)
@@ -635,6 +728,7 @@ Func _SaveConfig()
     IniWrite($sConfigFile, "Settings", "Pitch", GUICtrlRead($sliderPitch))
     IniWrite($sConfigFile, "Settings", "AutoUpdate", $bAutoUpdate ? "true" : "false")
     IniWrite($sConfigFile, "Settings", "AutoClipboard", $bAutoClipboard ? "true" : "false")
+    IniWrite($sConfigFile, "Settings", "DarkMode", $bDarkMode ? "true" : "false")
     Local $sCurrentText = GUICtrlRead($entertext)
     $sCurrentText = StringReplace($sCurrentText, @CRLF, "¶")
     IniWrite($sConfigFile, "Data", "LastText", $sCurrentText)

@@ -12,7 +12,7 @@
 
 Global $oErrorHandler = ObjEvent("AutoIt.Error", "_ErrFunc")
 
-Global $sAppVersion = "2.0"
+Global $sAppVersion = "2.1"
 Global Const $SVSFlagsAsync = 1
 Global Const $SVSFPurgeBeforeSpeak = 2
 Global $isPaused = False
@@ -178,7 +178,7 @@ While 1
 
         Case $message
             SoundPlay("sounds/message.wav")
-            MsgBox(0, "message", "Hello everyone!")
+            MsgBox(0, "message", "Hello everyone!, it's the last time everyone uses ReadText software. Thank you everyone for using my software, this is the final version of the software I developed. I have to stop developing the software because I myself have no ideas for my software. If you have ideas or need to contact, please contact via the following applications: email: vodinhhungtnlg@gmail.com, facebook: Phaolo Vo Dinh Hung")
 
         Case $facebook
             SoundPlay("sounds/enter.wav")

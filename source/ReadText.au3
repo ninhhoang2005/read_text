@@ -7,12 +7,11 @@
 #include <GuiMenu.au3>
 #include <WindowsConstants.au3>
 #include <Constants.au3>
-#include <File.au3>
 #include "includes/play-logo.au3"
 
 Global $oErrorHandler = ObjEvent("AutoIt.Error", "_ErrFunc")
 
-Global $sAppVersion = "2.1"
+Global $sAppVersion = "2.0"
 Global Const $SVSFlagsAsync = 1
 Global Const $SVSFPurgeBeforeSpeak = 2
 Global $isPaused = False
@@ -24,16 +23,13 @@ Global $bAutoClipboard = False
 Global $sGoogleVoiceExe = @ScriptDir & "\lib\google_voice.exe"
 Global $sSpeakExe = @ScriptDir & "\lib\SpeakToText.exe"
 
-Global $g_aVoiceList[200][2]
-Global $g_iVoiceCount = 0
-
 FileChangeDir(@ScriptDir)
 logo(1)
 
 Global $g_oSAPI
 $g_oSAPI = ObjCreate("SAPI.SpVoice")
 If @error Then
-    MsgBox(16, "Error", "Cannot initialize SAPI 5. Please check your Windows Speech settings.")
+    MsgBox(16, "error", "you cannot read by sapi 5. Please try again")
     Exit
 EndIf
 
@@ -45,7 +41,7 @@ $entertext = GuiCtrlCreateEdit("", 10, 25, 280, 50)
 
 GuiCtrlCreateLabel("&select voice", 10, 85)
 $comboVoice = GuiCtrlCreateCombo("", 10, 105, 280, 20, BitOR($CBS_DROPDOWNLIST, $WS_VSCROLL))
-_PopulateVoiceComboBox($comboVoice)
+PopulateVoiceComboBox($comboVoice)
 
 GuiCtrlCreateLabel("&Volume", 10, 135)
 $sliderVolume = GuiCtrlCreateSlider(10, 155, 330, 30, BitOR($TBS_AUTOTICKS, $WS_TABSTOP))
@@ -72,7 +68,9 @@ $btnPause = GuiCtrlCreateButton("Pause", 120, 310, 100, 35)
 $btnStop = GuiCtrlCreateButton("Stop", 230, 310, 110, 35)
 
 $btnGetClipboard = GuiCtrlCreateButton("Retrieve text from &clipboard", 50, 355, 230, 30)
+
 $btnSpeakToText = GuiCtrlCreateButton("Speak to Text (Microphone)", 50, 390, 230, 30)
+
 $btnMenuHelp = GuiCtrlCreateButton("&Menu", 50, 430, 230, 30)
 
 $dummyMenu = GuiCtrlCreateDummy()
@@ -81,6 +79,7 @@ $menu1 = GuiCtrlCreateMenuItem("about...", $contextMenu)
 $menuUpdate = GuiCtrlCreateMenuItem("checked for &updates", $contextMenu)
 $menu2 = GuiCtrlCreateMenuItem("c&ontribute", $contextMenu)
 $menuChangelog = GuiCtrlCreateMenuItem("view changelog", $contextMenu)
+
 $SubMenu1 = GuiCtrlCreateMenu("tutorial", $contextMenu)
 $menuitem1 = GuiCtrlCreateMenuItem("vietnamese", $SubMenu1)
 $menuitem2 = GuiCtrlCreateMenuItem("english", $SubMenu1)
@@ -116,12 +115,11 @@ While 1
             _SaveConfig()
             SoundPlay(@ScriptDir & "\sounds\exit.wav", 1)
             Exit
-
-        Case $menuChangelog
+Case $menuChangelog
             SoundPlay("sounds/enter.wav")
             _ShowChangelog()
 
-        Case $btnPause
+		Case $btnPause
             If Not IsGoogleVoice(GuiCtrlRead($comboVoice)) Then
                 If $isPaused Then
                     $g_oSAPI.Resume()
@@ -136,11 +134,7 @@ While 1
 
         Case $btnStop
             $g_oSAPI.Speak("", $SVSFPurgeBeforeSpeak)
-            ; Kill process Google
             ProcessClose("google_voice.exe")
-            ; Kill process 32-bit bridge
-            ProcessClose("cscript.exe")
-
             $isPaused = False
             GUICtrlSetData($btnPause, "Pause")
 
@@ -153,6 +147,7 @@ While 1
             _GetClipboardText(False)
 
         Case $btnSpeakToText
+            ; SoundPlay("sounds/enter.wav")
             _PerformSpeakToText()
 
         Case $btnMenuHelp
@@ -175,15 +170,12 @@ While 1
         Case $menu1
             SoundPlay("sounds/enter.wav")
             MsgBox(64, "about", "ReadText version: " & $sAppVersion & ", by developer vo dinh hung.")
-
         Case $message
             SoundPlay("sounds/message.wav")
-            MsgBox(0, "message", "Hello everyone!, it's the last time everyone uses ReadText software. Thank you everyone for using my software, this is the final version of the software I developed. I have to stop developing the software because I myself have no ideas for my software. If you have ideas or need to contact, please contact via the following applications: email: vodinhhungtnlg@gmail.com, facebook: Phaolo Vo Dinh Hung")
-
+            MsgBox(0, "message", "Hello everyone!")
         Case $facebook
             SoundPlay("sounds/enter.wav")
             ShellExecute("https://www.facebook.com/profile.php?id=100083295244149")
-
         Case $email
             SoundPlay("sounds/enter.wav")
             ShellExecute("https://mail.google.com/mail/u/0/?fs=1&tf=cm&source=mailto&to=vodinhhungtnlg@gmail.com")
@@ -201,222 +193,60 @@ While 1
             ReadText()
 
         Case $tts
-            _ActionSpeakOrSave(False)
+            Local $sSelectedVoice = GuiCtrlRead($comboVoice)
+            Local $ok = GuiCtrlRead($entertext)
+            Local $vol = GuiCtrlRead($sliderVolume)
+            Local $rate = GuiCtrlRead($sliderRate)
+            Local $pitch = GuiCtrlRead($sliderPitch)
+
+            If StringStripWS($ok, 8) = "" Then
+                SoundPlay("sounds/enter.wav")
+                MsgBox(48, "warning", "please enter your text")
+            Else
+                If IsGoogleVoice($sSelectedVoice) Then
+                    If Not FileExists($sGoogleVoiceExe) Then
+                        MsgBox(16, "Error", "File not found: " & $sGoogleVoiceExe)
+                    Else
+                        Local $sLangCode = ($sSelectedVoice = "Google Vietnamese") ? "vi" : "en"
+                        Local $sCleanText = StringReplace($ok, '"', "'")
+                        Local $sCmd = '"' & $sGoogleVoiceExe & '" ' & $sLangCode & ' "' & $sCleanText & '"'
+                        Run($sCmd, @ScriptDir, @SW_HIDE)
+                    EndIf
+                Else
+                    If Not IsObj($g_oSAPI) Then
+                         MsgBox(16, "Error", "SAPI Object Error.")
+                         Exit
+                    EndIf
+
+                    For $oToken In $g_oSAPI.GetVoices()
+                        If $oToken.GetDescription() = $sSelectedVoice Then
+                            $g_oSAPI.Voice = $oToken
+                            ExitLoop
+                        EndIf
+                    Next
+
+                    $g_oSAPI.Volume = $vol
+                    $g_oSAPI.Rate = $rate
+                    Local $ssml = '<sapi><pitch middle="' & $pitch & '">' & $ok & '</pitch></sapi>'
+                    $g_oSAPI.Speak($ssml, 1)
+                EndIf
+            EndIf
 
         Case $saveAudio
-            _ActionSpeakOrSave(True)
-
+            _SaveAudioHotkey()
         Case $saveText
             _SaveTextHotkey()
-
         Case $openText
             _OpenTextHotkey()
-
         Case $menu2
             SoundPlay("sounds/enter.wav")
             contribute()
     EndSwitch
 WEnd
 
-Func _ActionSpeakOrSave($bIsSave)
-    Local $sSelectedName = GuiCtrlRead($comboVoice)
-    Local $sText = GuiCtrlRead($entertext)
-    Local $iVol = GuiCtrlRead($sliderVolume)
-    Local $iRate = GuiCtrlRead($sliderRate)
-    Local $iPitch = GuiCtrlRead($sliderPitch)
-    Local $sFileSave = ""
-
-    If StringStripWS($sText, 8) = "" Then
-        SoundPlay("sounds/enter.wav")
-        MsgBox(48, "warning", "please enter your text")
-        Return
-    EndIf
-
-    If IsGoogleVoice($sSelectedName) Then
-        If $bIsSave Then
-            SoundPlay("sounds/enter.wav")
-            $sFileSave = FileSaveDialog("Save audio as...", @ScriptDir, "WAV Files (*.wav)|MP3 Files (*.mp3)", 16, "output.wav")
-             If @error Or $sFileSave = "" Then Return
-        EndIf
-
-        If Not FileExists($sGoogleVoiceExe) Then
-            MsgBox(16, "Error", "File not found: " & $sGoogleVoiceExe)
-            Return
-        EndIf
-
-        Local $sLangCode = ($sSelectedName = "Google Vietnamese") ? "vi" : "en"
-        Local $sCleanText = StringReplace($sText, '"', "'")
-        Local $sCmd = '"' & $sGoogleVoiceExe & '" ' & $sLangCode & ' "' & $sCleanText & '"'
-
-        If $bIsSave Then
-            $sCmd &= ' "' & $sFileSave & '"'
-            ProgressOn("Saving Audio", "Downloading from Google...", "Please wait")
-            Local $pid = Run($sCmd, @ScriptDir, @SW_HIDE)
-            ProcessWaitClose($pid)
-            ProgressOff()
-            If FileExists($sFileSave) Then
-                MsgBox(64, "Success", "Audio saved successfully: " & $sFileSave)
-            Else
-                MsgBox(16, "Error", "Failed to save audio. Check internet connection.")
-            EndIf
-        Else
-            Run($sCmd, @ScriptDir, @SW_HIDE)
-        EndIf
-        Return
-    EndIf
-
-    Local $sTokenID = _GetTokenIDByName($sSelectedName)
-    If $sTokenID = "" Then
-        MsgBox(16, "Error", "Voice ID could not be found.")
-        Return
-    EndIf
-
-    Local $bIs32Bit = StringInStr($sTokenID, "WOW6432Node")
-
-    If $bIsSave Then
-        SoundPlay("sounds/enter.wav")
-        $sFileSave = FileSaveDialog("Save audio as...", @ScriptDir, "WAV Files (*.wav)|MP3 Files (*.mp3)", 16, "output.wav")
-        If @error Or $sFileSave = "" Then Return
-    EndIf
-
-    If @AutoItX64 And $bIs32Bit Then
-        _RunSapiBridge($sTokenID, $sText, $iVol, $iRate, $iPitch, $sFileSave)
-    Else
-        _RunSapiNative($sTokenID, $sText, $iVol, $iRate, $iPitch, $sFileSave)
-    EndIf
-EndFunc
-
-Func _RunSapiNative($sID, $sText, $vol, $rate, $pitch, $sFile)
-    If Not IsObj($g_oSAPI) Then Return
-
-    Local $oToken = ObjCreate("SAPI.SpObjectToken")
-    If Not IsObj($oToken) Then Return
-
-    $oToken.SetId($sID)
-    $g_oSAPI.Voice = $oToken
-    $g_oSAPI.Volume = $vol
-    $g_oSAPI.Rate = $rate
-
-    Local $ssml = '<sapi><pitch middle="' & $pitch & '">' & $sText & '</pitch></sapi>'
-
-    If $sFile <> "" Then
-        Local $oStream = ObjCreate("SAPI.SpFileStream")
-        $oStream.Open($sFile, 3, False)
-        $g_oSAPI.AudioOutputStream = $oStream
-        $g_oSAPI.Speak($ssml)
-        $oStream.Close()
-        $g_oSAPI.AudioOutputStream = 0
-        MsgBox(64, "Success", "Audio saved successfully.")
-    Else
-        $g_oSAPI.Speak($ssml, 1) ; 1 = Async
-    EndIf
-EndFunc
-
-Func _RunSapiBridge($sID, $sText, $vol, $rate, $pitch, $sFile)
-    Local $sTempVBS = @TempDir & "\sapi_bridge.vbs"
-    Local $sTempText = @TempDir & "\sapi_content.txt"
-
-    Local $hFile = FileOpen($sTempText, 2 + 32)
-    FileWrite($hFile, $sText)
-    FileClose($hFile)
-
-    Local $sVBS = 'Option Explicit' & @CRLF
-    $sVBS &= 'Dim Voice, Token, Stream, FSO, TS, Text' & @CRLF
-    $sVBS &= 'Set FSO = CreateObject("Scripting.FileSystemObject")' & @CRLF
-    $sVBS &= 'Set TS = FSO.OpenTextFile("' & $sTempText & '", 1, False, -1)' & @CRLF
-    $sVBS &= 'Text = TS.ReadAll' & @CRLF
-    $sVBS &= 'TS.Close' & @CRLF
-    $sVBS &= 'Set Voice = CreateObject("SAPI.SpVoice")' & @CRLF
-    $sVBS &= 'Set Token = CreateObject("SAPI.SpObjectToken")' & @CRLF
-    $sVBS &= 'Token.SetId "' & $sID & '"' & @CRLF ; Set ID trực tiếp
-    $sVBS &= 'Set Voice.Voice = Token' & @CRLF
-    $sVBS &= 'Voice.Volume = ' & $vol & @CRLF
-    $sVBS &= 'Voice.Rate = ' & $rate & @CRLF
-
-    Local $sSSML = '<sapi><pitch middle=' & "'" & '" & ' & $pitch & ' & "' & "'" & '>' & '" & Text & "' & '</pitch></sapi>'
-
-    If $sFile <> "" Then
-        $sVBS &= 'Set Stream = CreateObject("SAPI.SpFileStream")' & @CRLF
-        $sVBS &= 'Stream.Open "' & $sFile & '", 3, False' & @CRLF
-        $sVBS &= 'Set Voice.AudioOutputStream = Stream' & @CRLF
-        $sVBS &= 'Voice.Speak "' & $sSSML & '"' & @CRLF
-        $sVBS &= 'Stream.Close' & @CRLF
-    Else
-        $sVBS &= 'Voice.Speak "' & $sSSML & '"' & @CRLF
-    EndIf
-
-    Local $hVBS = FileOpen($sTempVBS, 2)
-    FileWrite($hVBS, $sVBS)
-    FileClose($hVBS)
-
-    Local $sCScript = @WindowsDir & "\SysWOW64\cscript.exe"
-    If Not FileExists($sCScript) Then
-        $sCScript = "cscript.exe" ; Fallback
-    EndIf
-
-    If $sFile <> "" Then
-        ProgressOn("Saving (32-bit mode)", "Processing...", "Please wait")
-        RunWait('"' & $sCScript & '" //Nologo "' & $sTempVBS & '"', @TempDir, @SW_HIDE)
-        ProgressOff()
-        MsgBox(64, "Success", "Audio saved successfully (via 32-bit bridge).")
-    Else
-        Run('"' & $sCScript & '" //Nologo "' & $sTempVBS & '"', @TempDir, @SW_HIDE)
-    EndIf
-EndFunc
-
-Func _PopulateVoiceComboBox($hCombo)
-    Local $sList = ""
-    $g_iVoiceCount = 0
-    Local $aHives[3] = [ _
-        "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Speech\Voices\Tokens", _
-        "HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Speech\Voices\Tokens", _
-        "HKEY_CURRENT_USER\SOFTWARE\Microsoft\Speech\Voices\Tokens" _
-    ]
-
-    Local $i, $h, $sKey, $sName, $sID, $sFirstVoice = ""
-    For $h = 0 To 2
-        $i = 1
-        While 1
-            $sKey = RegEnumKey($aHives[$h], $i)
-            If @error Then ExitLoop
-
-            $sID = $aHives[$h] & "\" & $sKey
-            $sName = RegRead($sID, "")
-
-            Local $bExists = False
-            For $k = 0 To $g_iVoiceCount - 1
-                If $g_aVoiceList[$k][0] = $sName Then $bExists = True
-            Next
-
-            If $sName <> "" And Not $bExists Then
-                If $sFirstVoice = "" Then $sFirstVoice = $sName
-                $g_aVoiceList[$g_iVoiceCount][0] = $sName
-                $g_aVoiceList[$g_iVoiceCount][1] = $sID
-                $sList &= $sName & "|"
-                $g_iVoiceCount += 1
-            EndIf
-            $i += 1
-        WEnd
-    Next
-    If $sFirstVoice = "" Then $sFirstVoice = "Google English"
-    $sList &= "Google English|Google Vietnamese"
-    GuiCtrlSetData($hCombo, $sList, $sFirstVoice)
-EndFunc
-
-Func _GetTokenIDByName($sName)
-    For $i = 0 To $g_iVoiceCount - 1
-        If $g_aVoiceList[$i][0] = $sName Then Return $g_aVoiceList[$i][1]
-    Next
-    Return ""
-EndFunc
-
-Func IsGoogleVoice($sName)
-    Return ($sName = "Google English" Or $sName = "Google Vietnamese")
-EndFunc
-
 Func _PerformSpeakToText()
     If Not FileExists($sSpeakExe) Then
-        MsgBox(16, "Error", "File not found: " & $sSpeakExe)
+        MsgBox(16, "Error", "File not found!")
         Return
     EndIf
 
@@ -431,6 +261,7 @@ Func _PerformSpeakToText()
     ToolTip("Listening... Please speak now.", Default, Default, "Microphone", 1)
 
     Local $iPID = Run('"' & $sSpeakExe & '" ' & $sLang, @ScriptDir, @SW_HIDE, $STDERR_CHILD + $STDOUT_CHILD)
+
     Local $bOutput = Binary("")
 
     While ProcessExists($iPID)
@@ -439,10 +270,13 @@ Func _PerformSpeakToText()
     WEnd
 
     $bOutput &= StdoutRead($iPID, False, True)
+
     SoundPlay("sounds\stop.wav", 0)
+
     ToolTip("")
 
     Local $sOutput = BinaryToString($bOutput, 4) ; 4 = UTF-8
+
     $sOutput = StringStripWS($sOutput, 3)
 
     If $sOutput <> "" Then
@@ -452,6 +286,93 @@ Func _PerformSpeakToText()
         Else
             GuiCtrlSetData($entertext, $sOutput)
         EndIf
+    EndIf
+EndFunc
+
+Func IsGoogleVoice($sName)
+    Return ($sName = "Google English" Or $sName = "Google Vietnamese")
+EndFunc
+
+Func _SaveAudioHotkey()
+    Local $sSelectedVoice = GuiCtrlRead($comboVoice)
+    Local $ok = GuiCtrlRead($entertext)
+
+    If StringStripWS($ok, 8) = "" Then
+        SoundPlay("sounds/enter.wav")
+        MsgBox(48, "warning", "please enter your text")
+        Return
+    EndIf
+
+    SoundPlay("sounds/enter.wav")
+
+    Local $sFile = FileSaveDialog("Save audio as...", @ScriptDir, "WAV Files (*.wav)|MP3 Files (*.mp3)", 16, "output.wav")
+    If @error Or $sFile = "" Then Return
+
+    Local $sExt = StringRight($sFile, 4)
+    If $sExt <> ".mp3" And $sExt <> ".wav" Then
+        $sFile &= ".wav"
+    EndIf
+
+    If IsGoogleVoice($sSelectedVoice) Then
+        Local $sLangCode = ($sSelectedVoice = "Google Vietnamese") ? "vi" : "en"
+        Local $sCleanText = StringReplace($ok, '"', "'")
+
+        Local $sCmd = '"' & $sGoogleVoiceExe & '" ' & $sLangCode & ' "' & $sCleanText & '" "' & $sFile & '"'
+
+        ProgressOn("Saving Audio", "Downloading from Google...", "Please wait")
+        Local $pid = Run($sCmd, @ScriptDir, @SW_HIDE)
+        ProcessWaitClose($pid)
+        ProgressOff()
+
+        If FileExists($sFile) Then
+            MsgBox(64, "Success", "Audio saved successfully: " & $sFile)
+        Else
+            MsgBox(16, "Error", "Failed to save audio. Check internet connection.")
+        EndIf
+
+    Else
+        Local $vol = GuiCtrlRead($sliderVolume)
+        Local $rate = GuiCtrlRead($sliderRate)
+        Local $pitch = GuiCtrlRead($sliderPitch)
+
+        Local $oStream = ObjCreate("SAPI.SpFileStream")
+        $oStream.Open($sFile, 3, False)
+
+        For $oToken In $g_oSAPI.GetVoices()
+            If $oToken.GetDescription() = $sSelectedVoice Then
+                $g_oSAPI.Voice = $oToken
+                ExitLoop
+            EndIf
+        Next
+
+        $g_oSAPI.Volume = $vol
+        $g_oSAPI.Rate = $rate
+        $g_oSAPI.AudioOutputStream = $oStream
+        Local $ssml = '<sapi><pitch middle="' & $pitch & '">' & $ok & '</pitch></sapi>'
+        $g_oSAPI.Speak($ssml)
+        $oStream.Close()
+        $g_oSAPI.AudioOutputStream = 0
+        MsgBox(64, "success", "Audio saved successfully.")
+    EndIf
+EndFunc
+
+Func PopulateVoiceComboBox($hCombo)
+    Local $sList = ""
+    If IsObj($g_oSAPI) Then
+        Local $aVoices = $g_oSAPI.GetVoices()
+        For $oToken In $aVoices
+            $sList &= $oToken.GetDescription() & "|"
+        Next
+    EndIf
+
+    $sList &= "Google English|Google Vietnamese"
+
+    GuiCtrlSetData($hCombo, $sList)
+
+    If IsObj($g_oSAPI) And $g_oSAPI.GetVoices().Count > 0 Then
+        GuiCtrlSetData($hCombo, $g_oSAPI.GetVoices().Item(0).GetDescription())
+    Else
+        GuiCtrlSetData($hCombo, "Google English")
     EndIf
 EndFunc
 
@@ -514,6 +435,7 @@ Func _GetClipboardText($bSilent)
 EndFunc
 
 Func _CheckGithubUpdate()
+
     Local $sCheckingText = "Checking for updates..."
     Local $hCheckGUI = GuiCreate("", 300, 80, -1, -1, BitOR($WS_CAPTION, $WS_POPUP), BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW))
     GuiSetBkColor(0xFFFFFF, $hCheckGUI)
@@ -540,6 +462,7 @@ Func _CheckGithubUpdate()
     EndIf
 
     $oHTTP.Open("GET", $sApiUrl, False)
+
     $oHTTP.Send()
 
     If @error Then
@@ -554,6 +477,7 @@ Func _CheckGithubUpdate()
     EndIf
 
     Local $sResponse = $oHTTP.ResponseText
+
     Local $aMatch = StringRegExp($sResponse, '"tag_name":\s*"([^"]+)"', 3)
 
     If IsArray($aMatch) Then
@@ -565,8 +489,8 @@ Func _CheckGithubUpdate()
                                      "Your version: " & $sAppVersion & @CRLF & @CRLF & _
                                      "Do you want to download it now?")
             If $iMsg = 6 Then
-                Local $downloadtext = "please wait"
-                Local $downloadGui = GuiCreate("downloading update", 400, 400, -1, -1)
+                $downloadtext = "please wait"
+                $downloadGui = GuiCreate("downloading update", 400, 400, -1, -1)
                 GuiSetBkColor($COLOR_WHITE)
                 GuiCtrlCreateLabel($downloadtext, 40, 60)
                 GuiSetState(@SW_SHOW, $downloadGui)
@@ -574,7 +498,9 @@ Func _CheckGithubUpdate()
                 Local $sSavePath = @ScriptDir & "\read_text.zip"
 
                 ProgressOn("Downloading Update", "Please wait while downloading...", "0%")
+
                 DllCall("winmm.dll", "int", "PlaySoundW", "wstr", @ScriptDir & "\sounds\updating.wav", "ptr", 0, "dword", 0x0009)
+
                 Local $hDownload = InetGet($sDownloadURL, $sSavePath, 1, 1)
 
                 Do
@@ -592,13 +518,18 @@ Func _CheckGithubUpdate()
                 Until InetGetInfo($hDownload, 2)
 
                 InetClose($hDownload)
+
                 DllCall("winmm.dll", "int", "PlaySoundW", "ptr", 0, "ptr", 0, "dword", 0)
+
                 ProgressOff()
                 GuiDelete($downloadGui)
+
                 SoundPlay("sounds/updated.wav")
+
                 MsgBox(64, "Success", "Downloaded successfully!" & @CRLF & "File saved as: " & $sSavePath)
-                Run("unzip.bat")
-                Exit
+Run("unzip.bat")
+                ; ShellExecute($sSavePath)
+Exit
             EndIf
         Else
             MsgBox(64, "no update available", "You are using the latest version (" & $sAppVersion & ").")

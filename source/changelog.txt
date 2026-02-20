@@ -1,4 +1,4 @@
-changes for 2.0
+changes for 2.1
 From this version users can see the changes and most important features will be noted here. Thank you to the devs for your hard work.
 - add volume, pitch and rate slider
 - add menu button to make the interface neater.
@@ -26,5 +26,3 @@ From this version users can see the changes and most important features will be 
 - update some new sounds.
 - add new keyboard shortcut to access settings ((control+shift+s).
 - add view changelog in menu.
-Change update sound.
-Now sapi5 can get sapi 64 bit and 32 bit.

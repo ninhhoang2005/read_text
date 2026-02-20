@@ -11,7 +11,7 @@
 
 Global $oErrorHandler = ObjEvent("AutoIt.Error", "_ErrFunc")
 
-Global $sAppVersion = "2.0"
+Global $sAppVersion = "2.1"
 Global Const $SVSFlagsAsync = 1
 Global Const $SVSFPurgeBeforeSpeak = 2
 Global $isPaused = False

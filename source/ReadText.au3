@@ -11,7 +11,7 @@
 
 Global $oErrorHandler = ObjEvent("AutoIt.Error", "_ErrFunc")
 
-Global $sAppVersion = "2.1"
+Global $sAppVersion = "2.2"
 Global Const $SVSFlagsAsync = 1
 Global Const $SVSFPurgeBeforeSpeak = 2
 Global $isPaused = False
@@ -19,9 +19,12 @@ Global $sConfigFile = @ScriptDir & "\ReadText.ini"
 
 Global $bAutoUpdate = False
 Global $bAutoClipboard = False
+Global $bStartup = False
 
 Global $sGoogleVoiceExe = @ScriptDir & "\lib\google_voice.exe"
 Global $sSpeakExe = @ScriptDir & "\lib\SpeakToText.exe"
+
+OnAutoItExitRegister("_SaveConfig")
 
 FileChangeDir(@ScriptDir)
 logo(1)
@@ -76,7 +79,7 @@ $btnMenuHelp = GuiCtrlCreateButton("&Menu", 50, 430, 230, 30)
 $dummyMenu = GuiCtrlCreateDummy()
 $contextMenu = GuiCtrlCreateContextMenu($dummyMenu)
 $menu1 = GuiCtrlCreateMenuItem("about...", $contextMenu)
-$menuUpdate = GuiCtrlCreateMenuItem("checked for &updates", $contextMenu)
+$menuUpdate = GuiCtrlCreateMenuItem("checked for &updates	Ctrl+shift+u", $contextMenu)
 $menu2 = GuiCtrlCreateMenuItem("c&ontribute", $contextMenu)
 $menuChangelog = GuiCtrlCreateMenuItem("view changelog", $contextMenu)
 
@@ -99,7 +102,7 @@ _LoadConfig()
 
 GuiSetState()
 
-Local $aAccelKeys[3][2] = [["^s", $saveText], ["^o", $openText], ["^+s", $menuSettings]]
+Local $aAccelKeys[4][2] = [["^s", $saveText], ["^o", $openText], ["^+s", $menuSettings], ["^+u", $menuUpdate]]
 GUISetAccelerators($aAccelKeys)
 If $bAutoClipboard Then
     _GetClipboardText(True)
@@ -115,7 +118,7 @@ While 1
             _SaveConfig()
             SoundPlay(@ScriptDir & "\sounds\exit.wav", 1)
             Exit
-Case $menuChangelog
+        Case $menuChangelog
             SoundPlay("sounds/enter.wav")
             _ShowChangelog()
 
@@ -141,10 +144,15 @@ Case $menuChangelog
         Case $menuSettings
             SoundPlay("sounds/enter.wav")
             _ShowSettings()
+            _SaveConfig() ; Save after settings change
+
+        Case $sliderVolume, $sliderRate, $sliderPitch
+            _SaveConfig() ; Save when sliders are changed
 
         Case $btnGetClipboard
             SoundPlay("sounds/enter.wav")
             _GetClipboardText(False)
+            _SaveConfig()
 
         Case $btnSpeakToText
             ; SoundPlay("sounds/enter.wav")
@@ -389,12 +397,13 @@ Func _ShowSettings()
 
     If $bAutoUpdate Then GUICtrlSetState($chkAutoUpdate, $GUI_CHECKED)
     If $bAutoClipboard Then GUICtrlSetState($chkAutoClip, $GUI_CHECKED)
+    If $bStartup Then GUICtrlSetState($chkStartupWin, $GUI_CHECKED)
 
     Local $sRegKey = "HKCU\Software\Microsoft\Windows\CurrentVersion\Run"
     Local $sAppName = "ReadTextApp"
-    If RegRead($sRegKey, $sAppName) = @ScriptFullPath Then
-        GUICtrlSetState($chkStartupWin, $GUI_CHECKED)
-    EndIf
+    ; If RegRead($sRegKey, $sAppName) = @ScriptFullPath Then
+    ;     GUICtrlSetState($chkStartupWin, $GUI_CHECKED)
+    ; EndIf
 
     GuiSetState(@SW_SHOW, $hSettingGUI)
 
@@ -407,11 +416,13 @@ Func _ShowSettings()
             Case $btnOk
                 $bAutoUpdate = (BitAND(GUICtrlRead($chkAutoUpdate), $GUI_CHECKED) = $GUI_CHECKED)
                 $bAutoClipboard = (BitAND(GUICtrlRead($chkAutoClip), $GUI_CHECKED) = $GUI_CHECKED)
+                $bStartup = (BitAND(GUICtrlRead($chkStartupWin), $GUI_CHECKED) = $GUI_CHECKED)
 
                 IniWrite($sConfigFile, "Settings", "AutoUpdate", $bAutoUpdate ? "true" : "false")
                 IniWrite($sConfigFile, "Settings", "AutoClipboard", $bAutoClipboard ? "true" : "false")
+                IniWrite($sConfigFile, "Settings", "Startup", $bStartup ? "true" : "false")
 
-                If BitAND(GUICtrlRead($chkStartupWin), $GUI_CHECKED) = $GUI_CHECKED Then
+                If $bStartup Then
                     RegWrite($sRegKey, $sAppName, "REG_SZ", @ScriptFullPath)
                 Else
                     RegDelete($sRegKey, $sAppName)
@@ -485,12 +496,50 @@ Func _CheckGithubUpdate()
         $sLatestVersion = StringReplace($sLatestVersion, "v", "")
         If $sLatestVersion <> $sAppVersion Then
             SoundPlay("sounds/update.wav")
-            Local $iMsg = MsgBox(36, "Update Available", "A new version (" & $sLatestVersion & ") is available!" & @CRLF & _
-                                     "Your version: " & $sAppVersion & @CRLF & @CRLF & _
-                                     "Do you want to download it now?")
-            If $iMsg = 6 Then
-                $downloadtext = "please wait"
-                $downloadGui = GuiCreate("downloading update", 400, 400, -1, -1)
+            
+            Local $sChangelog = "No changelog available."
+            Local $aBodyMatch = StringRegExp($sResponse, '"body":\s*"((?:[^"\\]|\\.)*)"', 3)
+            If IsArray($aBodyMatch) Then
+                $sChangelog = $aBodyMatch[0]
+                $sChangelog = StringReplace($sChangelog, "\r\n", @CRLF)
+                $sChangelog = StringReplace($sChangelog, "\n", @CRLF)
+                $sChangelog = StringReplace($sChangelog, '\"', '"')
+                $sChangelog = StringReplace($sChangelog, '\\', '\')
+                $sChangelog = StringReplace($sChangelog, '\/', '/')
+            ElseIf FileExists(@ScriptDir & "\changelog.txt") Then
+                $sChangelog = FileRead(@ScriptDir & "\changelog.txt")
+            EndIf
+            
+            Local $hUpdateGUI = GuiCreate("Update Available", 400, 450)
+            GUICtrlCreateLabel("new version(" & $sLatestVersion & ")!", 10, 10, 380, 25)
+            GUICtrlSetColor(-1, 0xFFFFFF)
+            GUICtrlSetFont(-1, 11, 800)
+
+            GUICtrlCreateLabel("current version: " & $sAppVersion, 10, 40, 380, 20)
+            GUICtrlSetColor(-1, 0xFFFFFF)
+
+            GUICtrlCreateLabel("Changelog for " & $sLatestVersion & ":", 10, 60, 380, 20)
+            Local $editChangelog = GUICtrlCreateEdit($sChangelog, 10, 80, 380, 310, BitOR($ES_AUTOVSCROLL, $ES_READONLY, $WS_VSCROLL, $WS_TABSTOP))
+            Local $btnDownload = GUICtrlCreateButton("&Download", 80, 400, 100, 30, $WS_TABSTOP)
+            Local $btnCancel = GUICtrlCreateButton("&Cancel", 220, 400, 100, 30, $WS_TABSTOP)
+            GuiSetState(@SW_SHOW, $hUpdateGUI)
+
+            Local $iDownload = 0
+            While 1
+                Switch GuiGetMSG()
+                    Case $GUI_EVENT_CLOSE, $btnCancel
+                        GuiDelete($hUpdateGUI)
+                        ExitLoop
+                    Case $btnDownload
+                        $iDownload = 6
+                        GuiDelete($hUpdateGUI)
+                        ExitLoop
+                EndSwitch
+            WEnd
+            
+            If $iDownload = 6 Then
+                Local $downloadtext = "please wait"
+                Local $downloadGui = GuiCreate("downloading update", 400, 400, -1, -1)
                 GuiSetBkColor($COLOR_WHITE)
                 GuiCtrlCreateLabel($downloadtext, 40, 60)
                 GuiSetState(@SW_SHOW, $downloadGui)
@@ -527,6 +576,7 @@ Func _CheckGithubUpdate()
                 SoundPlay("sounds/updated.wav")
 
                 MsgBox(64, "Success", "Downloaded successfully!" & @CRLF & "File saved as: " & $sSavePath)
+                _SaveConfig()
 Run("unzip.bat")
                 ; ShellExecute($sSavePath)
 Exit
@@ -615,6 +665,12 @@ EndFunc
 
 Func _LoadConfig()
     If Not FileExists($sConfigFile) Then Return
+    
+    ; Load Window Position
+    Local $iLeft = IniRead($sConfigFile, "Window", "Left", -1)
+    Local $iTop = IniRead($sConfigFile, "Window", "Top", -1)
+    If $iLeft <> -1 And $iTop <> -1 Then WinMove($hGUI, "", $iLeft, $iTop)
+
     Local $sVoice = IniRead($sConfigFile, "Settings", "Voice", "")
     If $sVoice <> "" Then GUICtrlSetData($comboVoice, $sVoice)
     Local $iVol = IniRead($sConfigFile, "Settings", "Volume", 100)
@@ -625,21 +681,31 @@ Func _LoadConfig()
     GUICtrlSetData($sliderPitch, $iPitch)
     $bAutoUpdate = (IniRead($sConfigFile, "Settings", "AutoUpdate", "false") = "true")
     $bAutoClipboard = (IniRead($sConfigFile, "Settings", "AutoClipboard", "false") = "true")
+    $bStartup = (IniRead($sConfigFile, "Settings", "Startup", "false") = "true")
+    
+    ; Load LastText (from INI)
     Local $sLastText = IniRead($sConfigFile, "Data", "LastText", "")
     $sLastText = StringReplace($sLastText, "¶", @CRLF)
     GUICtrlSetData($entertext, $sLastText)
 EndFunc
 
 Func _SaveConfig()
+    If Not WinExists($hGUI) Then Return
+    
     IniWrite($sConfigFile, "Settings", "Voice", GUICtrlRead($comboVoice))
     IniWrite($sConfigFile, "Settings", "Volume", GUICtrlRead($sliderVolume))
     IniWrite($sConfigFile, "Settings", "Rate", GUICtrlRead($sliderRate))
     IniWrite($sConfigFile, "Settings", "Pitch", GUICtrlRead($sliderPitch))
     IniWrite($sConfigFile, "Settings", "AutoUpdate", $bAutoUpdate ? "true" : "false")
     IniWrite($sConfigFile, "Settings", "AutoClipboard", $bAutoClipboard ? "true" : "false")
+    IniWrite($sConfigFile, "Settings", "Startup", $bStartup ? "true" : "false")
+    
     Local $sCurrentText = GUICtrlRead($entertext)
-    $sCurrentText = StringReplace($sCurrentText, @CRLF, "¶")
-    IniWrite($sConfigFile, "Data", "LastText", $sCurrentText)
+    
+    ; Save truncated version to INI
+    Local $sTruncated = StringLeft($sCurrentText, 1000)
+    $sTruncated = StringReplace($sTruncated, @CRLF, "¶")
+    IniWrite($sConfigFile, "Data", "LastText", $sTruncated)
 EndFunc
 
 Func _ShowChangelog()

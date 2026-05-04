@@ -1,3 +1,11 @@
+CHANGES FOR 2.2
+- NEW FEATURE:
+  - REDESIGNED UPDATE DIALOG BOX TO SEE CHANGES.
+  - Added new keyboard shortcuts **control+shift+u** to checked for update when have new version. you can press from main interface.
+- FIX BUG:
+  - Fixed the error of configuration not being fully saved.
+  - disabled unnecessary elements in file.ini.
+
 changes for 2.1
 From this version users can see the changes and most important features will be noted here. Thank you to the devs for your hard work.
 - add volume, pitch and rate slider

@@ -1,3 +1,10 @@
+changes for 2.3
+- new feature:
+  - Completely removed markdown in update dialogs and view change logs for better reading.
+
+- fix bug:
+  - applied a new data analysis mechanism in the update dialog to ensure everything stays accurate.
+
 CHANGES FOR 2.2
 - NEW FEATURE:
   - REDESIGNED UPDATE DIALOG BOX TO SEE CHANGES.

@@ -11,7 +11,7 @@
 
 Global $oErrorHandler = ObjEvent("AutoIt.Error", "_ErrFunc")
 
-Global $sAppVersion = "2.2"
+Global $sAppVersion = "2.3"
 Global Const $SVSFlagsAsync = 1
 Global Const $SVSFPurgeBeforeSpeak = 2
 Global $isPaused = False
@@ -36,7 +36,7 @@ If @error Then
     Exit
 EndIf
 
-Global $hGUI = GuiCreate("ReadTextV" & $sAppVersion & "(original version)", 350, 540)
+Global $hGUI = GuiCreate("ReadText version" & $sAppVersion & "", 350, 540)
 GuiSetBkColor($COLOR_BLUE)
 
 GuiCtrlCreateLabel("&enter text", 10, 5)
@@ -497,17 +497,11 @@ Func _CheckGithubUpdate()
         If $sLatestVersion <> $sAppVersion Then
             SoundPlay("sounds/update.wav")
             
-            Local $sChangelog = "No changelog available."
-            Local $aBodyMatch = StringRegExp($sResponse, '"body":\s*"((?:[^"\\]|\\.)*)"', 3)
+            Local $aBodyMatch = StringRegExp($sResponse, '"body":\s*"([^"\\]*(?:\\.[^"\\]*)*)"', 3)
+            Local $sChangelog = ""
             If IsArray($aBodyMatch) Then
-                $sChangelog = $aBodyMatch[0]
-                $sChangelog = StringReplace($sChangelog, "\r\n", @CRLF)
-                $sChangelog = StringReplace($sChangelog, "\n", @CRLF)
-                $sChangelog = StringReplace($sChangelog, '\"', '"')
-                $sChangelog = StringReplace($sChangelog, '\\', '\')
-                $sChangelog = StringReplace($sChangelog, '\/', '/')
-            ElseIf FileExists(@ScriptDir & "\changelog.txt") Then
-                $sChangelog = FileRead(@ScriptDir & "\changelog.txt")
+                $sChangelog = _UnescapeJSON($aBodyMatch[0])
+                $sChangelog = _StripMarkdown($sChangelog)
             EndIf
             
             Local $hUpdateGUI = GuiCreate("Update Available", 400, 450)
@@ -520,6 +514,10 @@ Func _CheckGithubUpdate()
 
             GUICtrlCreateLabel("Changelog for " & $sLatestVersion & ":", 10, 60, 380, 20)
             Local $editChangelog = GUICtrlCreateEdit($sChangelog, 10, 80, 380, 310, BitOR($ES_AUTOVSCROLL, $ES_READONLY, $WS_VSCROLL, $WS_TABSTOP))
+            GUICtrlCreateLabel("Do you want to download and install this update now?", 10, 345, 380, 20)
+            GUICtrlSetColor(-1, 0xFFFFFF)
+            GUICtrlSetFont(-1, 9, 600)
+
             Local $btnDownload = GUICtrlCreateButton("&Download", 80, 400, 100, 30, $WS_TABSTOP)
             Local $btnCancel = GUICtrlCreateButton("&Cancel", 220, 400, 100, 30, $WS_TABSTOP)
             GuiSetState(@SW_SHOW, $hUpdateGUI)
@@ -714,6 +712,7 @@ Func _ShowChangelog()
 
     If FileExists($sFilePath) Then
         $sContent = FileRead($sFilePath)
+        $sContent = _StripMarkdown($sContent)
     EndIf
 
     Local $hChangelogGUI = GuiCreate("Changelog", 400, 450)
@@ -729,6 +728,56 @@ Func _ShowChangelog()
                 ExitLoop
         EndSwitch
     WEnd
+EndFunc
+
+Func _UnescapeJSON($sString)
+    $sString = StringReplace($sString, '\"', '"')
+    $sString = StringReplace($sString, '\\', '\')
+    $sString = StringReplace($sString, '\/', '/')
+    $sString = StringReplace($sString, '\b', Chr(8))
+    $sString = StringReplace($sString, '\f', Chr(12))
+    $sString = StringReplace($sString, '\n', @LF)
+    $sString = StringReplace($sString, '\r', @CR)
+    $sString = StringReplace($sString, '\t', @TAB)
+    
+    ; Handle \uXXXX
+    Local $aMatch = StringRegExp($sString, "(?i)\\u([0-9a-f]{4})", 3)
+    If IsArray($aMatch) Then
+        For $i = 0 To UBound($aMatch) - 1
+            $sString = StringReplace($sString, "\u" & $aMatch[$i], ChrW(Dec($aMatch[$i])))
+        Next
+    EndIf
+    
+    Return $sString
+EndFunc
+
+Func _StripMarkdown($sText)
+    ; Remove HTML tags (if any)
+    $sText = StringRegExpReplace($sText, "<[^>]*>", "")
+    ; Remove bold and italic
+    $sText = StringRegExpReplace($sText, "(\*\*|__)(.*?)\1", "$2")
+    $sText = StringRegExpReplace($sText, "(\*|_)(.*?)\1", "$2")
+    ; Remove headers
+    $sText = StringRegExpReplace($sText, "(?m)^#+\s+", "")
+    ; Remove links: [text](url) -> text
+    $sText = StringRegExpReplace($sText, "\[(.*?)\]\(.*?\)", "$1")
+    ; Remove images: ![text](url) -> nothing
+    $sText = StringRegExpReplace($sText, "!\[.*?\]\(.*?\)", "")
+    ; Remove inline code
+    $sText = StringRegExpReplace($sText, "`(.+?)`", "$1")
+    ; Remove code blocks
+    $sText = StringReplace($sText, "```", "")
+    ; Remove blockquotes
+    $sText = StringRegExpReplace($sText, "(?m)^>\s+", "")
+    ; Remove list markers: -, *, + at the start of lines (with optional indentation)
+    $sText = StringRegExpReplace($sText, "(?m)^\s*[\-\*\+]\s+", "")
+    ; Remove task lists: - [ ] or - [x]
+    $sText = StringRegExpReplace($sText, "(?m)^\s*[\-\*\+]\s+\[[ xX]\]\s+", "")
+    ; Remove numbered lists: 1. 2. etc.
+    $sText = StringRegExpReplace($sText, "(?m)^\s*\d+\.\s+", "")
+    ; Remove horizontal rules: ---, ***, ___
+    $sText = StringRegExpReplace($sText, "(?m)^[\-\*_]{3,}\s*$", "")
+    Return $sText
 EndFunc
 
 Func _ErrFunc()

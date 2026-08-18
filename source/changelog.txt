@@ -1,3 +1,8 @@
+changes for 2.4
+- fix bug:
+  - Fixed interface overlap error.
+  - Fixed an error in the title.
+
 changes for 2.3
 - new feature:
   - Completely removed markdown in update dialogs and view change logs for better reading.

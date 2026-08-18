@@ -11,7 +11,7 @@
 
 Global $oErrorHandler = ObjEvent("AutoIt.Error", "_ErrFunc")
 
-Global $sAppVersion = "2.3"
+Global $sAppVersion = "2.4"
 Global Const $SVSFlagsAsync = 1
 Global Const $SVSFPurgeBeforeSpeak = 2
 Global $isPaused = False
@@ -36,7 +36,7 @@ If @error Then
     Exit
 EndIf
 
-Global $hGUI = GuiCreate("ReadText version" & $sAppVersion & "", 350, 540)
+Global $hGUI = GuiCreate("ReadText version " & $sAppVersion & "", 350, 720)
 GuiSetBkColor($COLOR_BLUE)
 
 GuiCtrlCreateLabel("&enter text", 10, 5)
@@ -61,20 +61,20 @@ $sliderPitch = GuiCtrlCreateSlider(10, 275, 330, 30, BitOR($TBS_AUTOTICKS, $WS_T
 GUICtrlSetLimit($sliderPitch, 10, -10)
 GUICtrlSetData($sliderPitch, 0)
 
-$button = GuiCtrlCreateButton("Read&Text", 40, 150, 280, 30)
-$message = GuiCtrlCreateButton("m&y message", 200, 180, 80, 50)
-$saveText = GuiCtrlCreateButton("Save Text, Ctrl+S", 50, 230, 230, 30)
-$openText = GuiCtrlCreateButton("Open Text Files, Ctrl+O", 50, 260, 230, 30)
-$saveAudio = GuiCtrlCreateButton("Save &Audio", 50, 290, 230, 30)
-$tts = GuiCtrlCreateButton("&Listen text", 50, 320, 230, 30)
-$btnPause = GuiCtrlCreateButton("Pause", 120, 310, 100, 35)
-$btnStop = GuiCtrlCreateButton("Stop", 230, 310, 110, 35)
+$button = GuiCtrlCreateButton("Read&Text", 40, 315, 280, 30)
+$message = GuiCtrlCreateButton("m&y message", 135, 353, 80, 40)
+$saveText = GuiCtrlCreateButton("Save Text, Ctrl+S", 50, 403, 230, 30)
+$openText = GuiCtrlCreateButton("Open Text Files, Ctrl+O", 50, 438, 230, 30)
+$saveAudio = GuiCtrlCreateButton("Save &Audio", 50, 473, 230, 30)
+$tts = GuiCtrlCreateButton("&Listen text", 50, 508, 230, 30)
+$btnPause = GuiCtrlCreateButton("Pause", 50, 543, 110, 32)
+$btnStop = GuiCtrlCreateButton("Stop", 170, 543, 110, 32)
 
-$btnGetClipboard = GuiCtrlCreateButton("Retrieve text from &clipboard", 50, 355, 230, 30)
+$btnGetClipboard = GuiCtrlCreateButton("Retrieve text from &clipboard", 50, 583, 230, 30)
 
-$btnSpeakToText = GuiCtrlCreateButton("Speak to Text (Microphone)", 50, 390, 230, 30)
+$btnSpeakToText = GuiCtrlCreateButton("Speak to Text (Microphone)", 50, 618, 230, 30)
 
-$btnMenuHelp = GuiCtrlCreateButton("&Menu", 50, 430, 230, 30)
+$btnMenuHelp = GuiCtrlCreateButton("&Menu", 50, 653, 230, 30)
 
 $dummyMenu = GuiCtrlCreateDummy()
 $contextMenu = GuiCtrlCreateContextMenu($dummyMenu)
